@@ -1,11 +1,15 @@
 import React, { useRef, useState } from 'react';
 import {
   CheckCircle2,
+  Cloud,
   Download,
+  LogIn,
+  LogOut,
   RotateCcw,
   SlidersHorizontal,
   Upload,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useGame } from '../../context/GameContext';
 
 function formatHistoryDate(ts: number): string {
@@ -25,6 +29,7 @@ export const RewardsShop: React.FC = () => {
     importSaveJson,
     resetProgress,
   } = useGame();
+  const { user, setIsAuthModalOpen, signOutUser } = useAuth();
 
   const [confirmReset, setConfirmReset] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -84,8 +89,49 @@ export const RewardsShop: React.FC = () => {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
-        {/* Левая колонка: карточка прогресса + резервная копия */}
+        {/* Левая колонка: аккаунт + карточка прогресса + резервная копия */}
         <div className="lg:col-span-5 space-y-5">
+          {/* Карточка аккаунта и облачной синхронизации */}
+          <section className="rounded-[20px] apple-card p-5 space-y-3.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-[#25262B] border border-white/[0.08] flex items-center justify-center shrink-0 text-[#E5A3BD]">
+                  <Cloud className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[15px] font-semibold text-white truncate">
+                    {user ? user.displayName || user.email : 'Локальный режим'}
+                  </div>
+                  <div className="text-[12px] text-[#8E9098] truncate">
+                    {user
+                      ? `${user.email ?? ''} · Синхронизация активна`
+                      : 'Войди, чтобы синхронизировать телефон и ПК'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {user ? (
+              <button
+                type="button"
+                onClick={() => void signOutUser()}
+                className="w-full h-10 rounded-[13px] bg-[#25262B] hover:bg-[#32343B] text-[13px] font-medium text-white inline-flex items-center justify-center gap-2 transition active:scale-[0.98]"
+              >
+                <LogOut className="w-4 h-4 text-[#8E9098]" />
+                <span>Выйти из аккаунта</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full h-11 rounded-[14px] apple-sunset-cta text-[#111214] text-[14px] font-semibold inline-flex items-center justify-center gap-2 transition active:scale-[0.98]"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Войти или создать аккаунт</span>
+              </button>
+            )}
+          </section>
+
           <section className="rounded-[20px] apple-wallet-card p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>

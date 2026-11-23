@@ -7,6 +7,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useAuth } from './AuthContext';
 import { getContactById } from '../data/contacts';
 import { EXERCISES } from '../data/exercises';
 import { createInitialMissions, createInitialRewards } from '../data/missions';
@@ -352,6 +355,7 @@ function accelerateAllRecovery(
 const GameContext = createContext<GameContextValue | null>(null);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [rawState, setRawState] = useState<GameState>(() => loadSavedState());
   const [now, setNow] = useState<number>(() => Date.now());
   const [missionPassedSummary, setMissionPassedSummary] =
@@ -364,6 +368,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const notifiedGreaseTsRef = useRef<number | null>(null);
   const notifiedMuscleTrainedAtRef = useRef<Partial<Record<MuscleGroup, number>>>({});
+  const isApplyingCloudRef = useRef<boolean>(false);
+  const cloudHydratedUidRef = useRef<string | null>(null);
+  const lastCloudUpdatedAtRef = useRef<number>(0);
 
   // Живой расчёт процентов восстановления всех мышц относительно текущего `now`
   const state = useMemo<GameState>(() => {
@@ -394,6 +401,85 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Игнорируем ошибку переполнения storage
     }
   }, [rawState]);
+
+  // Подписка на облачное состояние Cloud Firestore при входе в аккаунт
+  useEffect(() => {
+    if (!db || !user) {
+      cloudHydratedUidRef.current = null;
+      return;
+    }
+
+    const stateRef = doc(db, 'users', user.uid, 'game', 'state');
+
+    const unsub = onSnapshot(
+      stateRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as Partial<GameState> & { updatedAt?: number };
+          const remoteTs = typeof data.updatedAt === 'number' ? data.updatedAt : 0;
+
+          if (remoteTs > lastCloudUpdatedAtRef.current || cloudHydratedUidRef.current !== user.uid) {
+            lastCloudUpdatedAtRef.current = remoteTs;
+            cloudHydratedUidRef.current = user.uid;
+            isApplyingCloudRef.current = true;
+            setRawState((prev) => ({
+              ...prev,
+              ...data,
+              stats: { ...prev.stats, ...(data.stats ?? {}) },
+              activePlan: { ...prev.activePlan, ...(data.activePlan ?? {}) },
+              muscleRecovery: { ...prev.muscleRecovery, ...(data.muscleRecovery ?? {}) },
+            }));
+            if (data.onboardingCompleted) {
+              setIsOnboardingOpen(false);
+            }
+          }
+        } else {
+          // Первый вход нового аккаунта: выгружаем локальный прогресс в облако
+          cloudHydratedUidRef.current = user.uid;
+          const ts = Date.now();
+          lastCloudUpdatedAtRef.current = ts;
+          const sanitized = JSON.parse(
+            JSON.stringify({
+              ...rawState,
+              playerName:
+                rawState.playerName === 'Алекс' && user.displayName
+                  ? user.displayName
+                  : rawState.playerName,
+              updatedAt: ts,
+            })
+          );
+          void setDoc(stateRef, sanitized, { merge: true });
+        }
+      },
+      () => {
+        // Оффлайн или правила недоступны — продолжаем работать локально
+      }
+    );
+
+    return () => unsub();
+  }, [user]);
+
+  // Дебаунс-синхронизация локальных изменений в Cloud Firestore
+  useEffect(() => {
+    if (!db || !user || cloudHydratedUidRef.current !== user.uid) return;
+    if (isApplyingCloudRef.current) {
+      isApplyingCloudRef.current = false;
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (!db || !user) return;
+      const ts = Date.now();
+      lastCloudUpdatedAtRef.current = ts;
+      const stateRef = doc(db, 'users', user.uid, 'game', 'state');
+      const sanitized = JSON.parse(JSON.stringify({ ...rawState, updatedAt: ts }));
+      void setDoc(stateRef, sanitized, { merge: true }).catch(() => {
+        // Игнорируем временную потерю сети
+      });
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [rawState, user]);
 
   const pushNotification = useCallback(
     (notif: Omit<PhoneNotification, 'id' | 'timestamp' | 'read'>) => {

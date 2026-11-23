@@ -6,7 +6,9 @@ import {
   SlidersHorizontal,
   History,
 } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { GameProvider, useGame } from './context/GameContext';
+import { AuthModal } from './components/auth/AuthModal';
 import { CharacterPhoneView } from './components/character/CharacterPhoneView';
 import { MissionMap } from './components/missions/MissionMap';
 import { ActiveWorkout } from './components/missions/ActiveWorkout';
@@ -36,6 +38,7 @@ const AdaptiveAppShell: React.FC = () => {
     markAllNotificationsRead,
     setIsOnboardingOpen,
   } = useGame();
+  const { user, setIsAuthModalOpen } = useAuth();
   const [activeTab, setActiveTab] = useState<AppTab>('character');
 
   const handleSelectTab = (tab: AppTab) => {
@@ -131,6 +134,16 @@ const AdaptiveAppShell: React.FC = () => {
                 <SlidersHorizontal className="w-3.5 h-3.5 text-[#E5A3BD]" />
                 <span>Настроить план</span>
               </button>
+
+              {!user && (
+                <button
+                  type="button"
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="w-full h-10 px-3.5 rounded-[12px] apple-sunset-cta text-[#111214] text-[13px] font-semibold inline-flex items-center justify-center gap-2 transition active:scale-[0.98]"
+                >
+                  <span>Войти в аккаунт</span>
+                </button>
+              )}
             </div>
           </div>
         </aside>
@@ -267,15 +280,18 @@ const AdaptiveAppShell: React.FC = () => {
       <NotificationToast onOpenMessages={() => handleSelectTab('messages')} />
       <PlanOnboarding />
       <MissionPassedModal />
+      <AuthModal />
     </div>
   );
 };
 
 export function App() {
   return (
-    <GameProvider>
-      <AdaptiveAppShell />
-    </GameProvider>
+    <AuthProvider>
+      <GameProvider>
+        <AdaptiveAppShell />
+      </GameProvider>
+    </AuthProvider>
   );
 }
 
