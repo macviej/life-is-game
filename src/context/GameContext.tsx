@@ -7,8 +7,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 import { getContactById } from '../data/contacts';
 import { EXERCISES } from '../data/exercises';
@@ -355,7 +353,7 @@ function accelerateAllRecovery(
 const GameContext = createContext<GameContextValue | null>(null);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [rawState, setRawState] = useState<GameState>(() => loadSavedState());
   const [now, setNow] = useState<number>(() => Date.now());
   const [missionPassedSummary, setMissionPassedSummary] =
@@ -402,22 +400,30 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [rawState]);
 
-  // Подписка на облачное состояние Cloud Firestore при входе в аккаунт
+  // Загрузка и синхронизация состояния из Neon Postgres (/api/sync) при входе
   useEffect(() => {
-    if (!db || !user) {
+    if (!user || !token) {
       cloudHydratedUidRef.current = null;
       return;
     }
 
-    const stateRef = doc(db, 'users', user.uid, 'game', 'state');
+    let cancelled = false;
 
-    const unsub = onSnapshot(
-      stateRef,
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data() as Partial<GameState> & { updatedAt?: number };
-          const remoteTs = typeof data.updatedAt === 'number' ? data.updatedAt : 0;
+    const pullCloudState = async () => {
+      try {
+        const res = await fetch('/api/sync', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const payload = (await res.json()) as {
+          gameState?: Partial<GameState> | null;
+          updatedAt?: number;
+        };
 
+        const data = payload.gameState;
+        const remoteTs = typeof payload.updatedAt === 'number' ? payload.updatedAt : 0;
+
+        if (data && typeof data === 'object' && Array.isArray(data.missions)) {
           if (remoteTs > lastCloudUpdatedAtRef.current || cloudHydratedUidRef.current !== user.uid) {
             lastCloudUpdatedAtRef.current = remoteTs;
             cloudHydratedUidRef.current = user.uid;
@@ -434,52 +440,70 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         } else {
-          // Первый вход нового аккаунта: выгружаем локальный прогресс в облако
+          // Первый вход нового аккаунта: выгружаем локальный прогресс в Postgres
           cloudHydratedUidRef.current = user.uid;
           const ts = Date.now();
           lastCloudUpdatedAtRef.current = ts;
-          const sanitized = JSON.parse(
-            JSON.stringify({
-              ...rawState,
-              playerName:
-                rawState.playerName === 'Алекс' && user.displayName
-                  ? user.displayName
-                  : rawState.playerName,
-              updatedAt: ts,
-            })
-          );
-          void setDoc(stateRef, sanitized, { merge: true });
+          const nextState = {
+            ...rawState,
+            playerName:
+              rawState.playerName === 'Алекс' && user.displayName
+                ? user.displayName
+                : rawState.playerName,
+          };
+          await fetch('/api/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ gameState: nextState, updatedAt: ts }),
+          });
         }
-      },
-      () => {
-        // Оффлайн или правила недоступны — продолжаем работать локально
+      } catch {
+        // Оффлайн — продолжаем работать локально
       }
-    );
+    };
 
-    return () => unsub();
-  }, [user]);
+    void pullCloudState();
 
-  // Дебаунс-синхронизация локальных изменений в Cloud Firestore
+    const onFocus = () => {
+      void pullCloudState();
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [user, token]);
+
+  // Дебаунс-синхронизация локальных изменений в Neon Postgres (/api/sync)
   useEffect(() => {
-    if (!db || !user || cloudHydratedUidRef.current !== user.uid) return;
+    if (!user || !token || cloudHydratedUidRef.current !== user.uid) return;
     if (isApplyingCloudRef.current) {
       isApplyingCloudRef.current = false;
       return;
     }
 
     const timer = window.setTimeout(() => {
-      if (!db || !user) return;
+      if (!user || !token) return;
       const ts = Date.now();
       lastCloudUpdatedAtRef.current = ts;
-      const stateRef = doc(db, 'users', user.uid, 'game', 'state');
-      const sanitized = JSON.parse(JSON.stringify({ ...rawState, updatedAt: ts }));
-      void setDoc(stateRef, sanitized, { merge: true }).catch(() => {
+      void fetch('/api/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ gameState: rawState, updatedAt: ts }),
+      }).catch(() => {
         // Игнорируем временную потерю сети
       });
-    }, 700);
+    }, 600);
 
     return () => window.clearTimeout(timer);
-  }, [rawState, user]);
+  }, [rawState, user, token]);
 
   const pushNotification = useCallback(
     (notif: Omit<PhoneNotification, 'id' | 'timestamp' | 'read'>) => {

@@ -1,106 +1,130 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import {
-  User,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  updateProfile,
-} from 'firebase/auth';
-import { auth, googleProvider, isFirebaseConfigured } from '../lib/firebase';
+
+export interface AppUser {
+  uid: string;
+  email: string;
+  displayName: string;
+}
 
 export interface AuthContextValue {
-  user: User | null;
+  user: AppUser | null;
+  token: string | null;
   loading: boolean;
   authError: string | null;
   isConfigured: boolean;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   clearAuthError: () => void;
-  signInWithGoogle: () => Promise<boolean>;
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<boolean>;
   signOutUser: () => Promise<void>;
 }
 
+const TOKEN_STORAGE_KEY = 'life_is_game_auth_token_v1';
+const USER_STORAGE_KEY = 'life_is_game_auth_user_v1';
+const GAME_STORAGE_KEY = 'life_is_game_solis_v2';
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function mapAuthError(err: unknown): string {
-  const code =
-    typeof err === 'object' && err !== null && 'code' in err
-      ? String((err as { code: unknown }).code)
-      : '';
-
-  switch (code) {
-    case 'auth/invalid-credential':
-    case 'auth/wrong-password':
-    case 'auth/user-not-found':
-      return 'Неверный email или пароль.';
-    case 'auth/email-already-in-use':
-      return 'Аккаунт с этим email уже зарегистрирован.';
-    case 'auth/weak-password':
-      return 'Пароль должен содержать минимум 6 символов.';
-    case 'auth/invalid-email':
-      return 'Проверь корректность email.';
-    case 'auth/popup-closed-by-user':
-      return 'Окно входа было закрыто.';
-    case 'auth/too-many-requests':
-      return 'Слишком много попыток. Подожди немного и попробуй снова.';
-    default:
-      return 'Не удалось выполнить вход. Проверь подключение и попробуй снова.';
+function loadStoredAuth(): { token: string | null; user: AppUser | null } {
+  try {
+    if (typeof window === 'undefined') return { token: null, user: null };
+    const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+    const rawUser = window.localStorage.getItem(USER_STORAGE_KEY);
+    if (!token || !rawUser) return { token: null, user: null };
+    const user = JSON.parse(rawUser) as AppUser;
+    if (!user?.uid || !user?.email) return { token: null, user: null };
+    return { token, user };
+  } catch {
+    return { token: null, user: null };
   }
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(isFirebaseConfigured);
+  const initial = loadStoredAuth();
+  const [user, setUser] = useState<AppUser | null>(initial.user);
+  const [token, setToken] = useState<string | null>(initial.token);
+  const [loading, setLoading] = useState<boolean>(Boolean(initial.token));
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
+  // Проверка валидности сохранённого токена на сервере Postgres
   useEffect(() => {
-    if (!auth) {
+    if (!token) {
       setLoading(false);
       return;
     }
-    const unsub = onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = (await res.json()) as { user?: AppUser | null };
+          if (data.user) {
+            setUser(data.user);
+            window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+          } else {
+            setUser(null);
+            setToken(null);
+            window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+            window.localStorage.removeItem(USER_STORAGE_KEY);
+          }
+        } else if (res.status === 401) {
+          setUser(null);
+          setToken(null);
+          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+          window.localStorage.removeItem(USER_STORAGE_KEY);
+        }
+      } catch {
+        // Оффлайн режим — сохраняем текущую сессию локально
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
-  const signInWithGoogle = useCallback(async (): Promise<boolean> => {
-    if (!auth || !googleProvider) {
-      setAuthError('Облачная авторизация ещё не подключена к проекту Firebase.');
-      return false;
-    }
-    setAuthError(null);
-    try {
-      await signInWithPopup(auth, googleProvider);
-      setIsAuthModalOpen(false);
-      return true;
-    } catch (err) {
-      setAuthError(mapAuthError(err));
-      return false;
-    }
-  }, []);
-
   const signInWithEmail = useCallback(
     async (email: string, password: string): Promise<boolean> => {
-      if (!auth) {
-        setAuthError('Облачная авторизация ещё не подключена к проекту Firebase.');
-        return false;
-      }
       setAuthError(null);
       try {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'login',
+            email: email.trim(),
+            password,
+          }),
+        });
+        const data = (await res.json()) as {
+          token?: string;
+          user?: AppUser;
+          error?: string;
+        };
+
+        if (!res.ok || !data.token || !data.user) {
+          setAuthError(data.error || 'Неверный email или пароль.');
+          return false;
+        }
+
+        window.localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+        setToken(data.token);
+        setUser(data.user);
         setIsAuthModalOpen(false);
         return true;
-      } catch (err) {
-        setAuthError(mapAuthError(err));
+      } catch {
+        setAuthError('Не удалось подключиться к серверу. Проверь интернет.');
         return false;
       }
     },
@@ -109,20 +133,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUpWithEmail = useCallback(
     async (email: string, password: string, displayName?: string): Promise<boolean> => {
-      if (!auth) {
-        setAuthError('Облачная авторизация ещё не подключена к проекту Firebase.');
-        return false;
-      }
       setAuthError(null);
       try {
-        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        if (displayName?.trim()) {
-          await updateProfile(cred.user, { displayName: displayName.trim() });
+        let initialState: unknown = null;
+        try {
+          const raw = window.localStorage.getItem(GAME_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (displayName?.trim() && parsed && typeof parsed === 'object') {
+              parsed.playerName = displayName.trim();
+            }
+            initialState = parsed;
+          }
+        } catch {
+          initialState = null;
         }
+
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'register',
+            email: email.trim(),
+            password,
+            displayName: displayName?.trim() || undefined,
+            initialState,
+          }),
+        });
+        const data = (await res.json()) as {
+          token?: string;
+          user?: AppUser;
+          error?: string;
+        };
+
+        if (!res.ok || !data.token || !data.user) {
+          setAuthError(data.error || 'Не удалось создать аккаунт.');
+          return false;
+        }
+
+        window.localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+        setToken(data.token);
+        setUser(data.user);
         setIsAuthModalOpen(false);
         return true;
-      } catch (err) {
-        setAuthError(mapAuthError(err));
+      } catch {
+        setAuthError('Не удалось подключиться к серверу. Проверь интернет.');
         return false;
       }
     },
@@ -130,21 +186,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const signOutUser = useCallback(async () => {
-    if (!auth) return;
-    await signOut(auth);
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    window.localStorage.removeItem(USER_STORAGE_KEY);
+    setToken(null);
+    setUser(null);
   }, []);
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        token,
         loading,
         authError,
-        isConfigured: isFirebaseConfigured,
+        isConfigured: true,
         isAuthModalOpen,
         setIsAuthModalOpen,
         clearAuthError,
-        signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
         signOutUser,
