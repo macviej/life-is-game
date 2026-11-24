@@ -1,0 +1,19 @@
+{
+  "name": "Life is Game",
+  "short_name": "Life is Game",
+  "description": "Персональный план тренировок с 3D-техникой, трекингом восстановления мышц и облачной синхронизацией.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E0F11",
+  "theme_color": "#0E0F11",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

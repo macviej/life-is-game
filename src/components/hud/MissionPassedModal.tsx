@@ -79,6 +79,12 @@ export const MissionPassedModal: React.FC = () => {
         <p className="text-[14px] text-[#98989F] leading-relaxed max-w-[300px] mx-auto">
           {missionPassedSummary.recoveryNote}
         </p>
+
+        {missionPassedSummary.progressionNote && (
+          <div className="rounded-[16px] bg-[#8AE5C3]/10 border border-[#8AE5C3]/25 px-4 py-2.5 text-[13px] font-medium text-[#8AE5C3] leading-snug max-w-[340px] mx-auto">
+            {missionPassedSummary.progressionNote}
+          </div>
+        )}
       </div>
 
       <div className="space-y-2.5 pt-6">

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#191A1D"/>
+      <stop offset="100%" stop-color="#0E0F11"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="112" y1="96" x2="400" y2="416" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E5A3BD"/>
+      <stop offset="50%" stop-color="#A88CE8"/>
+      <stop offset="100%" stop-color="#8AE5C3"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="140" y1="200" x2="372" y2="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E5A3BD"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="168" stroke="rgba(255,255,255,0.08)" stroke-width="26"/>
+  <circle
+    cx="256"
+    cy="256"
+    r="168"
+    stroke="url(#ring)"
+    stroke-width="26"
+    stroke-linecap="round"
+    stroke-dasharray="790 280"
+    transform="rotate(-90 256 256)"
+  />
+  <!-- Minimalist pull-up bar + upward arrow mark -->
+  <path d="M168 196H344" stroke="url(#bar)" stroke-width="24" stroke-linecap="round"/>
+  <path d="M256 326V228" stroke="#8AE5C3" stroke-width="22" stroke-linecap="round"/>
+  <path d="M214 268L256 226L298 268" stroke="#8AE5C3" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

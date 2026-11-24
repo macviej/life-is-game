@@ -26,6 +26,7 @@ import {
 } from '../engine/soundEffects';
 import {
   CharacterStatsBars,
+  CloudSyncStatus,
   GameContextValue,
   GameState,
   Mission,
@@ -356,6 +357,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user, token } = useAuth();
   const [rawState, setRawState] = useState<GameState>(() => loadSavedState());
   const [now, setNow] = useState<number>(() => Date.now());
+  const [syncStatus, setSyncStatus] = useState<CloudSyncStatus>(() => (user ? 'syncing' : 'local'));
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [missionPassedSummary, setMissionPassedSummary] =
     useState<MissionPassedSummary | null>(null);
   const [activeToast, setActiveToast] = useState<PhoneNotification | null>(null);
@@ -404,17 +407,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!user || !token) {
       cloudHydratedUidRef.current = null;
+      setSyncStatus('local');
       return;
     }
 
     let cancelled = false;
 
     const pullCloudState = async () => {
+      setSyncStatus('syncing');
       try {
         const res = await fetch('/api/sync', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok || cancelled) return;
+        if (!res.ok || cancelled) {
+          if (!cancelled) setSyncStatus('offline');
+          return;
+        }
         const payload = (await res.json()) as {
           gameState?: Partial<GameState> | null;
           updatedAt?: number;
@@ -439,6 +447,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setIsOnboardingOpen(false);
             }
           }
+          setSyncStatus('synced');
+          setLastSyncedAt(remoteTs || Date.now());
         } else {
           // Первый вход нового аккаунта: выгружаем локальный прогресс в Postgres
           cloudHydratedUidRef.current = user.uid;
@@ -451,7 +461,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 ? user.displayName
                 : rawState.playerName,
           };
-          await fetch('/api/sync', {
+          const saveRes = await fetch('/api/sync', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -459,9 +469,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             },
             body: JSON.stringify({ gameState: nextState, updatedAt: ts }),
           });
+          if (!cancelled) {
+            setSyncStatus(saveRes.ok ? 'synced' : 'offline');
+            if (saveRes.ok) setLastSyncedAt(ts);
+          }
         }
       } catch {
-        // Оффлайн — продолжаем работать локально
+        if (!cancelled) setSyncStatus('offline');
       }
     };
 
@@ -486,6 +500,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    setSyncStatus('syncing');
     const timer = window.setTimeout(() => {
       if (!user || !token) return;
       const ts = Date.now();
@@ -497,9 +512,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ gameState: rawState, updatedAt: ts }),
-      }).catch(() => {
-        // Игнорируем временную потерю сети
-      });
+      })
+        .then((res) => {
+          if (res.ok) {
+            setSyncStatus('synced');
+            setLastSyncedAt(ts);
+          } else {
+            setSyncStatus('offline');
+          }
+        })
+        .catch(() => {
+          setSyncStatus('offline');
+        });
     }, 600);
 
     return () => window.clearTimeout(timer);
@@ -727,13 +751,53 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
       }
 
-      // Разблокировка следующих миссий и обновление самой миссии
+      // Умная прогрессия нагрузок:
+      // Если пользователь чисто выполнил ВСЕ подходы не ниже целевого плана,
+      // автоматически повышаем рабочий ориентир для следующего раза
+      // (+1 повторение или +5 сек для статики, не выше разумного потолка)
+      const allSetsHitTarget =
+        !isMedkitOrMobility &&
+        completedTasks.length > 0 &&
+        completedTasks.every((task) => {
+          const doneSets = task.completedSets;
+          if (doneSets.length < task.sets) return false;
+          return doneSets.every((val) => val >= task.targetPerSet);
+        });
+
+      const upgradedLabels: string[] = [];
+      const progressedTasksByExercise = new Map<string, number>();
+
+      if (allSetsHitTarget) {
+        for (const task of completedTasks) {
+          const ex = EXERCISES[task.exerciseId];
+          if (!ex) continue;
+          const step = ex.unit === 'seconds' ? 5 : ex.unit === 'meters' ? 50 : 1;
+          const cap = ex.unit === 'seconds' ? 120 : ex.unit === 'meters' ? 5000 : 40;
+          const nextTarget = Math.min(cap, task.targetPerSet + step);
+          if (nextTarget > task.targetPerSet) {
+            progressedTasksByExercise.set(task.exerciseId, nextTarget);
+            const unitShort = ex.unit === 'seconds' ? 'сек' : ex.unit === 'meters' ? 'м' : 'повт.';
+            upgradedLabels.push(`${ex.name}: ${task.targetPerSet} → ${nextTarget} ${unitShort}`);
+          }
+        }
+      }
+
+      // Разблокировка следующих миссий, обновление самой миссии и прогрессия задач
       const unlockIds = new Set(targetMission.rewards.unlocksMissionIds ?? []);
       const nextMissions: Mission[] = rawState.missions.map((m) => {
         const shouldUnlock = m.isUnlocked || unlockIds.has(m.id);
         if (m.id === missionId) {
+          const updatedTasks =
+            progressedTasksByExercise.size > 0
+              ? m.tasks.map((t) => {
+                  const bumped = progressedTasksByExercise.get(t.exerciseId);
+                  return bumped ? { ...t, targetPerSet: bumped } : t;
+                })
+              : m.tasks;
+
           return {
             ...m,
+            tasks: updatedTasks,
             lastCompletedAt: currentNow,
             timesCompleted: m.timesCompleted + 1,
             isUnlocked: shouldUnlock,
@@ -744,6 +808,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isUnlocked: shouldUnlock,
         };
       });
+
+      const progressionNote =
+        upgradedLabels.length > 0
+          ? `Прогрессия нагрузки: в следующий раз план повышен (${upgradedLabels.slice(0, 2).join(', ')}).`
+          : undefined;
 
       // Если это Grease the Groove — автоматически переносим следующий таймер
       const nextGreaseTs =
@@ -765,8 +834,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const notifItem: PhoneNotification = {
         id: createUid('notif'),
         contactId: targetMission.giverContactId,
-        title: `MISSION PASSED: ${targetMission.title}`,
-        message: `Отличная работа! Зачислено +${earnedRespect} Respect и +$${earnedCash}.`,
+        title: `Тренировка выполнена: ${targetMission.title}`,
+        message: progressionNote
+          ? `+${earnedRespect} XP. ${progressionNote}`
+          : `Отличная работа! Зачислено +${earnedRespect} XP.`,
         timestamp: currentNow,
         read: false,
         actionMissionId: targetMission.rewards.unlocksMissionIds?.[0],
@@ -834,6 +905,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         statBoosts: boosts,
         unlockedTitles: levelResult.unlockedTitles,
         recoveryNote,
+        progressionNote,
         suggestedNextMissionId: suggestedMission?.id,
         suggestedNextMissionTitle: suggestedMission?.title,
       });
@@ -1366,6 +1438,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     () => ({
       state,
       now,
+      syncStatus,
+      lastSyncedAt,
       recommendation,
       missionPassedSummary,
       activeToast,
@@ -1397,6 +1471,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [
       state,
       now,
+      syncStatus,
+      lastSyncedAt,
       recommendation,
       missionPassedSummary,
       activeToast,

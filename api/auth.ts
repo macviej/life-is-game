@@ -50,14 +50,59 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
-      action?: 'login' | 'register';
+      action?: 'login' | 'register' | 'change_password';
       email?: string;
       password?: string;
+      currentPassword?: string;
+      newPassword?: string;
       displayName?: string;
       initialState?: unknown;
     };
 
     const action = body.action;
+
+    if (action === 'change_password') {
+      const token = extractBearerToken(request);
+      const session = verifyToken(token);
+      if (!session) {
+        return Response.json({ error: 'Требуется вход в аккаунт.' }, { status: 401 });
+      }
+
+      const currentPassword = body.currentPassword ?? '';
+      const newPassword = body.newPassword ?? '';
+
+      if (newPassword.length < 6) {
+        return Response.json(
+          { error: 'Новый пароль должен содержать минимум 6 символов.' },
+          { status: 400 }
+        );
+      }
+
+      await ensureSchema();
+      const sql = getSql();
+      const rows = await sql`
+        SELECT password_hash FROM app_users WHERE id = ${session.uid} LIMIT 1
+      `;
+
+      if (rows.length === 0) {
+        return Response.json({ error: 'Аккаунт не найден.' }, { status: 404 });
+      }
+
+      const valid = verifyPassword(currentPassword, String(rows[0].password_hash));
+      if (!valid) {
+        return Response.json({ error: 'Текущий пароль указан неверно.' }, { status: 401 });
+      }
+
+      const newHash = hashPassword(newPassword);
+      await sql`
+        UPDATE app_users
+        SET password_hash = ${newHash}
+        WHERE id = ${session.uid}
+      `;
+
+      return Response.json({ ok: true });
+    }
+
     const email = (body.email ?? '').trim().toLowerCase();
     const password = body.password ?? '';
 

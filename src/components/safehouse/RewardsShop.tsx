@@ -2,9 +2,12 @@ import React, { useRef, useState } from 'react';
 import {
   CheckCircle2,
   Cloud,
+  CloudOff,
   Download,
+  KeyRound,
   LogIn,
   LogOut,
+  RefreshCw,
   RotateCcw,
   SlidersHorizontal,
   Upload,
@@ -21,23 +24,61 @@ function formatHistoryDate(ts: number): string {
   });
 }
 
+function formatSyncTime(ts: number | null): string {
+  if (!ts) return '';
+  return new Date(ts).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export const RewardsShop: React.FC = () => {
   const {
     state,
+    syncStatus,
+    lastSyncedAt,
     setIsOnboardingOpen,
     exportSaveJson,
     importSaveJson,
     resetProgress,
   } = useGame();
-  const { user, setIsAuthModalOpen, signOutUser } = useAuth();
+  const { user, setIsAuthModalOpen, signOutUser, changePassword } = useAuth();
 
   const [confirmReset, setConfirmReset] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSubmitting, setPwSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const flash = (msg: string) => {
     setFeedback(msg);
     window.setTimeout(() => setFeedback(null), 2600);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    if (newPassword.length < 6) {
+      setPwError('Новый пароль — минимум 6 символов.');
+      return;
+    }
+    setPwSubmitting(true);
+    try {
+      const res = await changePassword(currentPassword, newPassword);
+      if (!res.ok) {
+        setPwError(res.error || 'Не удалось сменить пароль.');
+        return;
+      }
+      setCurrentPassword('');
+      setNewPassword('');
+      setShowPasswordForm(false);
+      flash('Пароль обновлён');
+    } finally {
+      setPwSubmitting(false);
+    }
   };
 
   const handleExport = () => {
@@ -69,6 +110,41 @@ export const RewardsShop: React.FC = () => {
     Math.round((state.respectXp / Math.max(1, state.nextLevelXp)) * 100)
   );
 
+  const syncBadge = (() => {
+    if (!user) {
+      return {
+        label: 'Локально',
+        color: 'text-[#8E9098]',
+        dot: 'bg-[#6E7078]',
+        icon: Cloud,
+      };
+    }
+    if (syncStatus === 'syncing') {
+      return {
+        label: 'Сохранение...',
+        color: 'text-[#E5C97B]',
+        dot: 'bg-[#E5C97B]',
+        icon: RefreshCw,
+      };
+    }
+    if (syncStatus === 'offline') {
+      return {
+        label: 'Оффлайн',
+        color: 'text-[#FF8A80]',
+        dot: 'bg-[#FF453A]',
+        icon: CloudOff,
+      };
+    }
+    return {
+      label: lastSyncedAt ? `В облаке · ${formatSyncTime(lastSyncedAt)}` : 'В облаке',
+      color: 'text-[#7ED484]',
+      dot: 'bg-[#7ED484]',
+      icon: Cloud,
+    };
+  })();
+
+  const SyncIcon = syncBadge.icon;
+
   return (
     <div className="px-5 md:px-0 pt-5 pb-6 space-y-6">
       <header className="flex items-start justify-between gap-3">
@@ -93,10 +169,12 @@ export const RewardsShop: React.FC = () => {
         <div className="lg:col-span-5 space-y-5">
           {/* Карточка аккаунта и облачной синхронизации */}
           <section className="rounded-[20px] apple-card p-5 space-y-3.5">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-[#25262B] border border-white/[0.08] flex items-center justify-center shrink-0 text-[#E5A3BD]">
-                  <Cloud className="w-5 h-5" />
+                  <SyncIcon
+                    className={`w-5 h-5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`}
+                  />
                 </div>
                 <div className="min-w-0">
                   <div className="text-[15px] font-semibold text-white truncate">
@@ -104,22 +182,84 @@ export const RewardsShop: React.FC = () => {
                   </div>
                   <div className="text-[12px] text-[#8E9098] truncate">
                     {user
-                      ? `${user.email ?? ''} · Синхронизация активна`
+                      ? user.email
                       : 'Войди, чтобы синхронизировать телефон и ПК'}
                   </div>
                 </div>
               </div>
+
+              <span
+                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131417] border border-white/[0.06] text-[11px] font-medium ${syncBadge.color}`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${syncBadge.dot}`} />
+                <span>{syncBadge.label}</span>
+              </span>
             </div>
 
             {user ? (
-              <button
-                type="button"
-                onClick={() => void signOutUser()}
-                className="w-full h-10 rounded-[13px] bg-[#25262B] hover:bg-[#32343B] text-[13px] font-medium text-white inline-flex items-center justify-center gap-2 transition active:scale-[0.98]"
-              >
-                <LogOut className="w-4 h-4 text-[#8E9098]" />
-                <span>Выйти из аккаунта</span>
-              </button>
+              <div className="space-y-2.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPwError(null);
+                      setShowPasswordForm((prev) => !prev);
+                    }}
+                    className="h-10 rounded-[13px] bg-[#25262B] hover:bg-[#32343B] text-[13px] font-medium text-white inline-flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-[#E5A3BD]" />
+                    <span>Пароль</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void signOutUser()}
+                    className="h-10 rounded-[13px] bg-[#25262B] hover:bg-[#32343B] text-[13px] font-medium text-white inline-flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-[#8E9098]" />
+                    <span>Выйти</span>
+                  </button>
+                </div>
+
+                {showPasswordForm && (
+                  <form
+                    onSubmit={handlePasswordChange}
+                    className="pt-2 border-t border-white/[0.06] space-y-2.5"
+                  >
+                    <input
+                      type="password"
+                      required
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Текущий пароль"
+                      autoComplete="current-password"
+                      className="w-full h-10 px-3.5 rounded-[12px] bg-[#131417] border border-white/[0.08] text-[13px] text-white placeholder:text-[#6E7078] focus:outline-none focus:border-[#E5A3BD]"
+                    />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Новый пароль (от 6 символов)"
+                      autoComplete="new-password"
+                      className="w-full h-10 px-3.5 rounded-[12px] bg-[#131417] border border-white/[0.08] text-[13px] text-white placeholder:text-[#6E7078] focus:outline-none focus:border-[#E5A3BD]"
+                    />
+                    {pwError && (
+                      <div className="rounded-[10px] bg-[#FF453A]/15 border border-[#FF453A]/30 px-3 py-1.5 text-[12px] text-[#FF8A80]">
+                        {pwError}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={pwSubmitting}
+                      className="w-full h-10 rounded-[12px] apple-sunset-cta disabled:opacity-45 text-[#111214] text-[13px] font-semibold active:scale-[0.98] transition"
+                    >
+                      {pwSubmitting ? 'Сохранение...' : 'Обновить пароль'}
+                    </button>
+                  </form>
+                )}
+              </div>
             ) : (
               <button
                 type="button"

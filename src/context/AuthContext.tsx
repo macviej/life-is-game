@@ -17,6 +17,10 @@ export interface AuthContextValue {
   clearAuthError: () => void;
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<boolean>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   signOutUser: () => Promise<void>;
 }
 
@@ -185,6 +189,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   );
 
+  const changePassword = useCallback(
+    async (
+      currentPassword: string,
+      newPassword: string
+    ): Promise<{ ok: boolean; error?: string }> => {
+      if (!token) {
+        return { ok: false, error: 'Сначала войди в аккаунт.' };
+      }
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: 'change_password',
+            currentPassword,
+            newPassword,
+          }),
+        });
+        const data = (await res.json()) as { ok?: boolean; error?: string };
+        if (!res.ok || !data.ok) {
+          return { ok: false, error: data.error || 'Не удалось сменить пароль.' };
+        }
+        return { ok: true };
+      } catch {
+        return { ok: false, error: 'Нет подключения к серверу.' };
+      }
+    },
+    [token]
+  );
+
   const signOutUser = useCallback(async () => {
     window.localStorage.removeItem(TOKEN_STORAGE_KEY);
     window.localStorage.removeItem(USER_STORAGE_KEY);
@@ -205,6 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearAuthError,
         signInWithEmail,
         signUpWithEmail,
+        changePassword,
         signOutUser,
       }}
     >

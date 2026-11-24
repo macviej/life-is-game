@@ -193,6 +193,8 @@ export interface GameState {
   browserPushEnabled: boolean;
 }
 
+export type CloudSyncStatus = 'local' | 'syncing' | 'synced' | 'offline';
+
 export interface MissionPassedSummary {
   missionId: string;
   missionTitle: string;
@@ -204,6 +206,7 @@ export interface MissionPassedSummary {
   statBoosts: Partial<Record<keyof CharacterStatsBars, number>>;
   unlockedTitles: string[];
   recoveryNote: string;
+  progressionNote?: string;
   suggestedNextMissionId?: string;
   suggestedNextMissionTitle?: string;
 }
@@ -232,6 +235,8 @@ export interface PlanCalibrationInput {
 export interface GameContextValue {
   state: GameState;
   now: number;
+  syncStatus: CloudSyncStatus;
+  lastSyncedAt: number | null;
   recommendation: NextTrainingRecommendation;
   missionPassedSummary: MissionPassedSummary | null;
   activeToast: PhoneNotification | null;
