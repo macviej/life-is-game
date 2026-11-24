@@ -716,6 +716,11 @@ export const ExerciseAnimationSvg: React.FC<ExerciseAnimationSvgProps> = ({
     const onPointerDown = (e: PointerEvent) => {
       isDragging = true;
       lastX = e.clientX;
+      try {
+        dom.setPointerCapture(e.pointerId);
+      } catch {
+        /* capture is best-effort */
+      }
     };
     const onPointerMove = (e: PointerEvent) => {
       if (!isDragging) return;
@@ -730,9 +735,11 @@ export const ExerciseAnimationSvg: React.FC<ExerciseAnimationSvgProps> = ({
 
     const dom = renderer.domElement;
     dom.style.cursor = 'grab';
+    dom.style.touchAction = 'pan-y';
     dom.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
 
     const resizeObserver = new ResizeObserver(() => {
       if (!container) return;
@@ -1033,6 +1040,7 @@ export const ExerciseAnimationSvg: React.FC<ExerciseAnimationSvgProps> = ({
       dom.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry.dispose();
