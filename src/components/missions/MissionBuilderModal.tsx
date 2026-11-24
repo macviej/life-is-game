@@ -108,7 +108,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
     if (defaultGroupId && defaultGroupId !== 'all' && groups.some((g) => g.id === defaultGroupId)) {
       return defaultGroupId;
     }
-    return groups.find((g) => g.id !== 'fitness')?.id ?? groups[0]?.id ?? 'home_life';
+    return groups.find((g) => g.id !== 'fitness')?.id ?? groups[0]?.id ?? 'tasks';
   }, [defaultGroupId, groups]);
 
   const [activeTab, setActiveTab] = useState<'mission' | 'group'>(initialTab);
@@ -117,8 +117,6 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
   const [groupId, setGroupId] = useState<string>(resolvedDefaultGroupId);
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
-  const [jokeQuote, setJokeQuote] = useState('');
-  const [isBigMission, setIsBigMission] = useState(false);
   const [kind, setKind] = useState<LifeMissionKind>(inferKindFromGroup(resolvedDefaultGroupId));
   const [placeName, setPlaceName] = useState('');
   const [rewardTier, setRewardTier] = useState<RewardTier>('medium');
@@ -213,8 +211,6 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
   const resetMissionForm = () => {
     setTitle('');
     setSubtitle('');
-    setJokeQuote('');
-    setIsBigMission(false);
     setPlaceName('');
     setRewardTier('medium');
     setSubMissions([]);
@@ -234,7 +230,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
   const handleSubmitMission = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanTitle = title.trim();
-    if (!cleanTitle) return;
+    if (!cleanTitle || subMissions.length === 0) return;
 
     const reward = REWARD_PRESETS[rewardTier];
     const cleanPlace = placeName.trim();
@@ -251,11 +247,10 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
     createLifeMission({
       groupId,
       title: cleanTitle,
-      subtitle: subtitle.trim() || 'Пользовательская миссия',
+      subtitle: subtitle.trim() || 'Список пунктов',
       kind,
-      isBigMission,
+      isBigMission: false,
       isCustom: true,
-      jokeQuote: jokeQuote.trim() || undefined,
       subMissions,
       mapPin,
       rewardRespect: reward.respect,
@@ -406,67 +401,11 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                     className="w-full h-11 px-3.5 rounded-[14px] bg-[#131417] border border-white/[0.09] text-[14px] text-white placeholder-[#636366] focus:outline-none focus:border-[#E5A3BD]/60 transition"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-[12px] font-medium text-[#98989F] mb-1.5">
-                    Шуточный брифинг / цитата (опционально)
-                  </label>
-                  <input
-                    type="text"
-                    value={jokeQuote}
-                    onChange={(e) => setJokeQuote(e.target.value)}
-                    placeholder="«Лишний шуруп в конце сборки — это просто запасная деталь»"
-                    className="w-full h-11 px-3.5 rounded-[14px] bg-[#131417] border border-white/[0.09] text-[14px] text-white placeholder-[#636366] focus:outline-none focus:border-[#E5A3BD]/60 transition"
-                  />
-                </div>
               </div>
 
-              {/* Big Mission Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsBigMission((prev) => {
-                    const next = !prev;
-                    if (next) setRewardTier('big');
-                    return next;
-                  });
-                }}
-                className={`w-full p-3.5 rounded-[18px] border text-left flex items-center justify-between gap-3 transition ${
-                  isBigMission
-                    ? 'bg-[#E5A3BD]/12 border-[#E5A3BD]/45'
-                    : 'bg-[#131417] border-white/[0.08] hover:border-white/[0.16]'
-                }`}
-              >
-                <div className="flex items-start gap-3 min-w-0">
-                  <div
-                    className={`w-9 h-9 rounded-[12px] shrink-0 flex items-center justify-center ${
-                      isBigMission
-                        ? 'bg-[#E5A3BD]/25 text-[#E5A3BD]'
-                        : 'bg-white/[0.06] text-[#8E9098]'
-                    }`}
-                  >
-                    <Heart className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[14px] font-semibold text-white">Большая миссия</div>
-                    <div className="text-[12px] text-[#98989F] leading-snug mt-0.5">
-                      После завершения придёт поощрение: Люсии это понравится
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className={`w-11 h-6 rounded-full p-0.5 shrink-0 transition-colors ${
-                    isBigMission ? 'bg-[#E5A3BD]' : 'bg-white/15'
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                      isBigMission ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </div>
-              </button>
+              <p className="text-[13px] text-[#8E9098]">
+                Добавь пункты списком. «Люсии это понравится» придёт, когда отмечены все.
+              </p>
 
               {/* SubMissions Constructor */}
               <div className="rounded-[20px] apple-card p-4 space-y-3.5">
@@ -659,7 +598,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={!title.trim()}
+                disabled={!title.trim() || subMissions.length === 0}
                 className="flex-1 h-12 rounded-[16px] apple-sunset-cta text-[#111214] text-[15px] font-semibold disabled:opacity-40 active:scale-[0.98] transition"
               >
                 Создать миссию

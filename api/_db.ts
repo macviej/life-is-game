@@ -33,12 +33,11 @@ export async function ensureSchema() {
 }
 
 function getSecret(): string {
-  return (
-    process.env.AUTH_SECRET ||
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    'life-is-game-default-secret'
-  );
+  const secret = process.env.AUTH_SECRET;
+  if (!secret || secret.length < 16) {
+    throw new Error('AUTH_SECRET must be set to a string of at least 16 characters');
+  }
+  return secret;
 }
 
 export function hashPassword(password: string): string {

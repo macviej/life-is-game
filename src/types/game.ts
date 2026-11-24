@@ -295,6 +295,12 @@ export interface GameState {
   mapMode: 'real' | 'solis';
   userLocation: { lat: number; lng: number } | null;
   nextGreaseTimestamp: number | null;
+  /** lastTrainedAt, по которому уже отправили сигнал о готовности группы. */
+  recoveryNotifiedAt: Partial<Record<MuscleGroup, number>>;
+  /** nextGreaseTimestamp, по которому уже отправили напоминание. */
+  greaseNotifiedAt: number | null;
+  /** Время последней локальной правки. Облако принимает только более новую метку. */
+  stateUpdatedAt: number;
   notifications: PhoneNotification[];
   rewards: RewardItem[];
   history: WorkoutLogEntry[];

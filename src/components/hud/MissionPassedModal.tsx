@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Check, Sparkles } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { CharacterStatsBars } from '../../types/game';
 
@@ -20,19 +20,9 @@ export const MissionPassedModal: React.FC = () => {
     ([, val]) => typeof val === 'number' && val > 0
   ) as [keyof CharacterStatsBars, number][];
 
-  const showLuciaPraise = Boolean(
-    missionPassedSummary.luciaQuote || missionPassedSummary.isBigMission
-  );
-
-  const luciaText =
-    missionPassedSummary.luciaQuote ||
-    'Крупное дело закрыто красиво и без суеты. На побережье Solis такое уважают.';
-
   const headerEyebrow = missionPassedSummary.leveledUp
     ? `Новый уровень · Ур. ${missionPassedSummary.newLevel}`
-    : missionPassedSummary.isBigMission
-    ? 'Дело сделано'
-    : 'Миссия выполнена';
+    : 'Тренировка выполнена';
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0B0C10]/90 backdrop-blur-3xl flex items-center justify-center md:p-6 overflow-y-auto animate-modal-in">
@@ -86,23 +76,6 @@ export const MissionPassedModal: React.FC = () => {
               <div className="mt-1 text-[11px] font-medium text-[#98989F]">Здоровье</div>
             </div>
           </div>
-
-          {/* Signature Big-Mission Celebration: "Люсии это понравится" */}
-          {showLuciaPraise && (
-            <div className="rounded-[22px] lucia-praise-banner px-4 py-3.5 text-left">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#FF6B9D] to-[#FFB36B] flex items-center justify-center text-[#111214] shrink-0">
-                  <Sparkles className="w-3.5 h-3.5 stroke-[2.4]" />
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#FFB5CE]">
-                  Люсии это понравится
-                </span>
-              </div>
-              <p className="mt-2 text-[14px] text-white/95 leading-snug font-medium">
-                «{luciaText}»
-              </p>
-            </div>
-          )}
 
           {statEntries.length > 0 && (
             <div className="flex flex-wrap items-center justify-center gap-2">

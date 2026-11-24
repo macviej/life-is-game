@@ -593,8 +593,6 @@ const MarkerBottomSheet: React.FC<MarkerBottomSheetProps> = ({
     ? lifeMission.rewardHealth
     : fitnessMission?.rewards.healthBonus ?? 0;
 
-  const quote = lifeMission?.jokeQuote || fitnessMission?.briefingQuote;
-
   return (
     <div
       className="solis-sheet-enter absolute inset-x-3 bottom-3 md:inset-x-auto md:left-4 md:bottom-4 md:w-[410px] z-[600]"
@@ -653,11 +651,6 @@ const MarkerBottomSheet: React.FC<MarkerBottomSheetProps> = ({
             <p className="mt-0.5 text-[13px] text-[#98989F] leading-snug">
               {marker.subtitle}
             </p>
-          )}
-          {quote && (
-            <div className="mt-2.5 px-3 py-2 rounded-[14px] bg-white/[0.05] border border-white/[0.07] text-[12px] text-[#D1D5DB] italic leading-relaxed">
-              «{quote}»
-            </div>
           )}
         </div>
 
@@ -762,14 +755,11 @@ const MarkerBottomSheet: React.FC<MarkerBottomSheetProps> = ({
         <div className="flex items-center gap-2 pt-0.5">
           {lifeMission ? (
             <>
-              <button
-                type="button"
-                onClick={() => onCompleteLifeMission(lifeMission.id)}
-                className="flex-1 h-10 px-4 rounded-[14px] apple-sunset-cta font-semibold text-[13px] inline-flex items-center justify-center gap-1.5 active:scale-[0.98] transition"
-              >
-                <Check className="w-4 h-4" />
-                <span>Выполнить миссию</span>
-              </button>
+              <p className="flex-1 text-[12px] text-[#98989F] leading-snug">
+                {totalSubs > 0 && doneSubs >= totalSubs
+                  ? 'Все пункты отмечены'
+                  : 'Отметь все пункты — тогда придёт «Люсии это понравится».'}
+              </p>
               {onOpenMissionInHub && (
                 <button
                   type="button"
@@ -911,40 +901,8 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
       };
     });
 
-    const fitnessMeta = getGroupMeta('fitness', missionGroups);
-    const keyFitness = selectKeyFitnessMissions(
-      state.missions,
-      state.activeMissionId,
-      plannedFitnessMissionId
-    );
-    const fitnessItems: MapMarkerItem[] = keyFitness.map((m, idx) => {
-      const spot = FITNESS_SOLIS_SPOTS[idx % FITNESS_SOLIS_SPOTS.length];
-      return {
-        kind: 'fitness',
-        key: `fitness:${m.id}`,
-        id: m.id,
-        mission: m,
-        groupId: 'fitness',
-        code: m.code || fitnessMeta.mapMarkerCode,
-        color: fitnessMeta.color,
-        title: m.title,
-        subtitle: m.subtitle,
-        virtualX: spot.virtualX,
-        virtualY: spot.virtualY,
-        placeName: spot.placeName,
-        districtLabel: spot.districtLabel,
-        isBig: m.type === 'boss_fight' || m.id === state.activeMissionId,
-      };
-    });
-
-    return [...lifeItems, ...fitnessItems];
-  }, [
-    activeLifeMissions,
-    missionGroups,
-    state.missions,
-    state.activeMissionId,
-    plannedFitnessMissionId,
-  ]);
+    return lifeItems;
+  }, [activeLifeMissions, missionGroups]);
 
   const filteredMarkers = useMemo(() => {
     if (selectedGroupFilter === 'all') return allMarkers;
@@ -962,7 +920,7 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
     for (const marker of allMarkers) {
       counts.set(marker.groupId, (counts.get(marker.groupId) ?? 0) + 1);
     }
-    const groupIds = new Set<MissionGroupId>(['fitness']);
+    const groupIds = new Set<MissionGroupId>();
     for (const g of missionGroups) groupIds.add(g.id);
     for (const k of counts.keys()) groupIds.add(k);
 

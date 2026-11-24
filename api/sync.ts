@@ -64,14 +64,34 @@ export async function POST(request: Request) {
     const sql = getSql();
     const stateJson = JSON.stringify(body.gameState);
 
-    await sql`
+    const updated = await sql`
       UPDATE app_users
       SET
         game_state = ${stateJson}::jsonb,
         state_updated_at = ${updatedAt},
         display_name = ${playerName}
       WHERE id = ${session.uid}
+        AND state_updated_at < ${updatedAt}
+      RETURNING state_updated_at
     `;
+
+    if (updated.length === 0) {
+      const current = await sql`
+        SELECT game_state, state_updated_at
+        FROM app_users
+        WHERE id = ${session.uid}
+        LIMIT 1
+      `;
+      return Response.json(
+        {
+          ok: false,
+          conflict: true,
+          gameState: current[0]?.game_state ?? null,
+          updatedAt: Number(current[0]?.state_updated_at ?? 0),
+        },
+        { status: 409 }
+      );
+    }
 
     return Response.json({
       ok: true,

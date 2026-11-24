@@ -26,7 +26,8 @@ export interface AuthContextValue {
 
 const TOKEN_STORAGE_KEY = 'life_is_game_auth_token_v1';
 const USER_STORAGE_KEY = 'life_is_game_auth_user_v1';
-const GAME_STORAGE_KEY = 'life_is_game_solis_v2';
+const GAME_STORAGE_KEY = 'life_is_game_solis_v2:guest';
+const LEGACY_GAME_STORAGE_KEY = 'life_is_game_solis_v2';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -141,7 +142,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         let initialState: unknown = null;
         try {
-          const raw = window.localStorage.getItem(GAME_STORAGE_KEY);
+          const raw =
+            window.localStorage.getItem(GAME_STORAGE_KEY) ||
+            window.localStorage.getItem(LEGACY_GAME_STORAGE_KEY);
           if (raw) {
             const parsed = JSON.parse(raw);
             if (displayName?.trim() && parsed && typeof parsed === 'object') {

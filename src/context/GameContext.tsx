@@ -13,7 +13,6 @@ import { EXERCISES } from '../data/exercises';
 import {
   DEFAULT_MISSION_GROUPS,
   INITIAL_LIFE_MISSIONS,
-  LUCIA_PRAISE_QUOTES,
   MISSION_TEMPLATES,
 } from '../data/lifeMissions';
 import { createInitialMissions, createInitialRewards } from '../data/missions';
@@ -50,7 +49,22 @@ import {
   WorkoutLogEntry,
 } from '../types/game';
 
-const STORAGE_KEY = 'life_is_game_solis_v2';
+const LEGACY_STORAGE_KEY = 'life_is_game_solis_v2';
+
+const SEEDED_LIFE_MISSION_IDS = new Set([
+  'life_init_shopping',
+  'life_init_porch',
+  'life_init_work',
+  'life_init_street',
+]);
+
+function storageKeyFor(uid: string | null): string {
+  return uid ? `${LEGACY_STORAGE_KEY}:user:${uid}` : `${LEGACY_STORAGE_KEY}:guest`;
+}
+
+function statCeiling(level: number): number {
+  return Math.min(220, 100 + Math.max(0, level - 1) * 5);
+}
 
 function getRankTitle(level: number): string {
   if (level >= 12) return 'Мастер';
@@ -72,12 +86,6 @@ function getYesterdayDateKey(timestamp: number): string {
 
 function createUid(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function pickLuciaQuote(): string {
-  return LUCIA_PRAISE_QUOTES[
-    Math.floor(Math.random() * LUCIA_PRAISE_QUOTES.length)
-  ];
 }
 
 function normalizeUserLocation(
@@ -144,6 +152,9 @@ function createInitialState(): GameState {
     mapMode: 'real',
     userLocation: null,
     nextGreaseTimestamp: null,
+    recoveryNotifiedAt: {},
+    greaseNotifiedAt: null,
+    stateUpdatedAt: 0,
     notifications: [
       {
         id: 'notif_welcome_marcus',
@@ -164,14 +175,31 @@ function createInitialState(): GameState {
   };
 }
 
-function loadSavedState(): GameState {
+function readStoredUid(): string | null {
   try {
-    if (typeof window === 'undefined') return createInitialState();
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createInitialState();
-    const parsed = JSON.parse(raw) as Partial<GameState>;
-    const fallback = createInitialState();
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem('life_is_game_auth_user_v1');
+    if (!raw) return null;
+    const user = JSON.parse(raw) as { uid?: unknown };
+    return typeof user?.uid === 'string' ? user.uid : null;
+  } catch {
+    return null;
+  }
+}
 
+function cleanLifeLayer(groups: MissionGroup[], missions: LifeMission[]): {
+  missionGroups: MissionGroup[];
+  lifeMissions: LifeMission[];
+} {
+  const lifeMissions = missions.filter((mission) => !SEEDED_LIFE_MISSION_IDS.has(mission.id));
+  const used = new Set(lifeMissions.map((mission) => mission.groupId));
+  const missionGroups = groups.filter((group) => group.isCustom || used.has(group.id));
+  return { missionGroups, lifeMissions };
+}
+
+function hydrateSavedState(parsed: Partial<GameState> | null): GameState {
+  const fallback = createInitialState();
+  try {
     if (
       !parsed ||
       typeof parsed !== 'object' ||
@@ -215,17 +243,30 @@ function loadSavedState(): GameState {
 
     const migratedMissions = recalibrated.missions.map((fresh) => {
       const prev = oldMissionMap.get(fresh.id);
-      return prev
-        ? {
-            ...fresh,
-            timesCompleted: prev.timesCompleted ?? 0,
-            lastCompletedAt: prev.lastCompletedAt,
-            isUnlocked: prev.isUnlocked || fresh.isUnlocked,
-          }
-        : fresh;
+      if (!prev) return fresh;
+      const savedTasks =
+        Array.isArray(prev.tasks) && prev.tasks.length > 0
+          ? prev.tasks.map((task) => ({
+              exerciseId: task.exerciseId,
+              sets: task.sets,
+              targetPerSet: task.targetPerSet,
+              completedSets: [],
+            }))
+          : fresh.tasks;
+      return {
+        ...fresh,
+        tasks: savedTasks,
+        timesCompleted: prev.timesCompleted ?? 0,
+        lastCompletedAt: prev.lastCompletedAt,
+        isUnlocked: prev.isUnlocked || fresh.isUnlocked,
+      };
     });
 
     const cleanLevel = typeof parsed.level === 'number' ? parsed.level : fallback.level;
+    const lifeLayer = cleanLifeLayer(
+      Array.isArray(parsed.missionGroups) ? parsed.missionGroups : fallback.missionGroups,
+      Array.isArray(parsed.lifeMissions) ? parsed.lifeMissions : fallback.lifeMissions
+    );
 
     return {
       ...fallback,
@@ -237,13 +278,11 @@ function loadSavedState(): GameState {
         ...recalibrated.plan,
       },
       muscleRecovery: { ...fallback.muscleRecovery, ...parsed.muscleRecovery },
-      missionGroups:
-        Array.isArray(parsed.missionGroups) && parsed.missionGroups.length > 0
-          ? parsed.missionGroups
-          : fallback.missionGroups,
-      lifeMissions: Array.isArray(parsed.lifeMissions)
-        ? parsed.lifeMissions
-        : fallback.lifeMissions,
+      missionGroups: lifeLayer.missionGroups,
+      lifeMissions: lifeLayer.lifeMissions,
+      recoveryNotifiedAt: parsed.recoveryNotifiedAt ?? {},
+      greaseNotifiedAt: parsed.greaseNotifiedAt ?? null,
+      stateUpdatedAt: typeof parsed.stateUpdatedAt === 'number' ? parsed.stateUpdatedAt : 0,
       mapMode:
         parsed.mapMode === 'solis' || parsed.mapMode === 'real'
           ? parsed.mapMode
@@ -256,11 +295,39 @@ function loadSavedState(): GameState {
       history: Array.isArray(parsed.history) ? parsed.history : fallback.history,
     };
   } catch {
-    return createInitialState();
+    return fallback;
   }
 }
 
-function clampStat(val: number, min = 0, max = 100): number {
+function readRawState(key: string): GameState | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    return hydrateSavedState(JSON.parse(raw) as Partial<GameState>);
+  } catch {
+    return null;
+  }
+}
+
+function loadStateForUid(uid: string | null): GameState {
+  if (typeof window === 'undefined') return createInitialState();
+  const guestKey = storageKeyFor(null);
+  if (!window.localStorage.getItem(guestKey)) {
+    const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacy) window.localStorage.setItem(guestKey, legacy);
+  }
+  if (uid) {
+    return readRawState(storageKeyFor(uid)) ?? createInitialState();
+  }
+  return readRawState(guestKey) ?? readRawState(LEGACY_STORAGE_KEY) ?? createInitialState();
+}
+
+function loadSavedState(): GameState {
+  return loadStateForUid(readStoredUid());
+}
+
+function clampStat(val: number, min = 0, max = 220): number {
   return Math.max(min, Math.min(max, Math.round(val)));
 }
 
@@ -400,6 +467,98 @@ function accelerateAllRecovery(
   return next;
 }
 
+function checklistComplete(mission: LifeMission): boolean {
+  return mission.subMissions.length > 0 && mission.subMissions.every((item) => item.completed);
+}
+
+function settleLifeMission(
+  prev: GameState,
+  missionId: string
+): { state: GameState; toast: PhoneNotification } | null {
+  const target = prev.lifeMissions.find((mission) => mission.id === missionId);
+  if (!target || target.status === 'completed' || !checklistComplete(target)) return null;
+
+  const currentNow = Date.now();
+  const earnedRespect = target.rewardRespect;
+  const earnedCash = target.rewardCash;
+  const healthBonus = target.rewardHealth;
+  const newRespectXp = prev.respectXp + earnedRespect;
+  const levelResult = applyLevelProgress(
+    prev.level,
+    newRespectXp,
+    prev.nextLevelXp,
+    prev.stats.maxHp
+  );
+  const todayKey = getDateKey(currentNow);
+  const yesterdayKey = getYesterdayDateKey(currentNow);
+  const nextStreak =
+    prev.lastWorkoutDate === todayKey
+      ? prev.streakDays
+      : prev.lastWorkoutDate === yesterdayKey
+        ? prev.streakDays + 1
+        : 1;
+  const todayCount =
+    prev.history.filter((entry) => getDateKey(entry.completedAt) === todayKey).length + 1;
+
+  const toast: PhoneNotification = {
+    id: createUid('notif'),
+    contactId: 'doc_elena',
+    title: 'Люсии это понравится',
+    message: `«${target.title}» закрыта: отмечены все пункты.`,
+    timestamp: currentNow,
+    read: false,
+    category: 'lucia_praise',
+  };
+
+  return {
+    toast,
+    state: {
+      ...prev,
+      level: levelResult.level,
+      rankTitle: getRankTitle(levelResult.level),
+      respectXp: newRespectXp,
+      nextLevelXp: levelResult.nextLevelXp,
+      cash: prev.cash + earnedCash,
+      streakDays: nextStreak,
+      heatStars: Math.min(6, Math.max(1, 1 + Math.floor(nextStreak / 2) + (todayCount >= 2 ? 1 : 0))),
+      lastWorkoutDate: todayKey,
+      stats: {
+        ...prev.stats,
+        healthLevel: clampStat(prev.stats.healthLevel + Math.ceil(healthBonus / 2)),
+        maxHp: levelResult.maxHp,
+        currentHp: levelResult.leveledUp
+          ? levelResult.maxHp
+          : Math.min(levelResult.maxHp, prev.stats.currentHp + healthBonus),
+        discipline: clampStat(prev.stats.discipline + 2),
+      },
+      lifeMissions: prev.lifeMissions.map((mission) =>
+        mission.id === missionId
+          ? {
+              ...mission,
+              status: 'completed',
+              completedAt: currentNow,
+              timesCompleted: mission.timesCompleted + 1,
+            }
+          : mission
+      ),
+      notifications: [toast, ...prev.notifications].slice(0, 40),
+      history: [
+        {
+          id: createUid('log'),
+          missionId: target.id,
+          missionTitle: target.title,
+          completedAt: currentNow,
+          totalSets: target.subMissions.length,
+          totalRepsOrSec: target.subMissions.length,
+          earnedRespect,
+          earnedCash,
+        },
+        ...prev.history,
+      ].slice(0, 100),
+    },
+  };
+}
+
 const GameContext = createContext<GameContextValue | null>(null);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -416,11 +575,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     () => !loadSavedState().onboardingCompleted
   );
 
-  const notifiedGreaseTsRef = useRef<number | null>(null);
-  const notifiedMuscleTrainedAtRef = useRef<Partial<Record<MuscleGroup, number>>>({});
+  const scopeUidRef = useRef<string | null>(user?.uid ?? readStoredUid());
+  const revisionRef = useRef<number>(0);
+  const rawStateRef = useRef<GameState>(rawState);
+  rawStateRef.current = rawState;
   const isApplyingCloudRef = useRef<boolean>(false);
+  const skipRevisionBumpRef = useRef<boolean>(true);
   const cloudHydratedUidRef = useRef<string | null>(null);
-  const lastCloudUpdatedAtRef = useRef<number>(0);
+  if (revisionRef.current === 0 && rawState.stateUpdatedAt > 0) {
+    revisionRef.current = rawState.stateUpdatedAt;
+  }
 
   // Живой расчёт процентов восстановления всех мышц относительно текущего `now`
   const state = useMemo<GameState>(() => {
@@ -441,18 +605,55 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [rawState, now]);
 
-  // Автосохранение в localStorage
+  useEffect(() => {
+    const nextUid = user?.uid ?? null;
+    if (scopeUidRef.current === nextUid) return;
+    scopeUidRef.current = nextUid;
+    const next = loadStateForUid(nextUid);
+    isApplyingCloudRef.current = true;
+    skipRevisionBumpRef.current = true;
+    revisionRef.current = next.stateUpdatedAt || 0;
+    cloudHydratedUidRef.current = null;
+    setRawState(next);
+    setIsOnboardingOpen(!next.onboardingCompleted);
+  }, [user?.uid, setIsOnboardingOpen]);
+
+  // Автосохранение в localStorage аккаунта или гостя
   useEffect(() => {
     try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rawState));
+      if (typeof window === 'undefined') return;
+      const key = storageKeyFor(scopeUidRef.current);
+      if (isApplyingCloudRef.current || skipRevisionBumpRef.current) {
+        isApplyingCloudRef.current = false;
+        skipRevisionBumpRef.current = false;
+        revisionRef.current = rawState.stateUpdatedAt || revisionRef.current;
+        window.localStorage.setItem(key, JSON.stringify(rawState));
+        return;
       }
+      const ts = Date.now();
+      revisionRef.current = ts;
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({ ...rawState, stateUpdatedAt: ts })
+      );
     } catch {
       // Игнорируем ошибку переполнения storage
     }
   }, [rawState]);
 
-  // Загрузка и синхронизация состояния из Neon Postgres (/api/sync) при входе
+  const applyRemoteState = useCallback(
+    (data: Partial<GameState>, remoteTs: number) => {
+      const next = hydrateSavedState({ ...data, stateUpdatedAt: remoteTs });
+      isApplyingCloudRef.current = true;
+      skipRevisionBumpRef.current = true;
+      revisionRef.current = remoteTs;
+      setRawState(next);
+      if (next.onboardingCompleted) setIsOnboardingOpen(false);
+    },
+    [setIsOnboardingOpen]
+  );
+
+  // Загрузка облачного сейва. Более старая копия не затирает новую.
   useEffect(() => {
     if (!user || !token) {
       cloudHydratedUidRef.current = null;
@@ -469,129 +670,115 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok || cancelled) {
-          if (!cancelled) setSyncStatus('offline');
+          if (!cancelled) {
+            cloudHydratedUidRef.current = user.uid;
+            setSyncStatus('offline');
+          }
           return;
         }
         const payload = (await res.json()) as {
           gameState?: Partial<GameState> | null;
           updatedAt?: number;
         };
+        if (cancelled) return;
 
         const data = payload.gameState;
         const remoteTs = typeof payload.updatedAt === 'number' ? payload.updatedAt : 0;
+        cloudHydratedUidRef.current = user.uid;
 
         if (data && typeof data === 'object' && Array.isArray(data.missions)) {
-          if (remoteTs > lastCloudUpdatedAtRef.current || cloudHydratedUidRef.current !== user.uid) {
-            lastCloudUpdatedAtRef.current = remoteTs;
-            cloudHydratedUidRef.current = user.uid;
-            isApplyingCloudRef.current = true;
-            setRawState((prev) => ({
-              ...prev,
-              ...data,
-              stats: { ...prev.stats, ...(data.stats ?? {}) },
-              activePlan: { ...prev.activePlan, ...(data.activePlan ?? {}) },
-              muscleRecovery: { ...prev.muscleRecovery, ...(data.muscleRecovery ?? {}) },
-              missionGroups:
-                Array.isArray(data.missionGroups) && data.missionGroups.length > 0
-                  ? data.missionGroups
-                  : prev.missionGroups,
-              lifeMissions: Array.isArray(data.lifeMissions)
-                ? data.lifeMissions
-                : prev.lifeMissions,
-              mapMode:
-                data.mapMode === 'solis' || data.mapMode === 'real'
-                  ? data.mapMode
-                  : prev.mapMode,
-              userLocation:
-                data.userLocation !== undefined
-                  ? normalizeUserLocation(data.userLocation)
-                  : prev.userLocation,
-            }));
-            if (data.onboardingCompleted) {
-              setIsOnboardingOpen(false);
-            }
+          if (remoteTs > revisionRef.current) {
+            applyRemoteState(data, remoteTs);
           }
           setSyncStatus('synced');
           setLastSyncedAt(remoteTs || Date.now());
-        } else {
-          // Первый вход нового аккаунта: выгружаем локальный прогресс в Postgres
-          cloudHydratedUidRef.current = user.uid;
-          const ts = Date.now();
-          lastCloudUpdatedAtRef.current = ts;
-          const nextState = {
-            ...rawState,
-            playerName:
-              rawState.playerName === 'Алекс' && user.displayName
-                ? user.displayName
-                : rawState.playerName,
-          };
-          const saveRes = await fetch('/api/sync', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ gameState: nextState, updatedAt: ts }),
-          });
-          if (!cancelled) {
-            setSyncStatus(saveRes.ok ? 'synced' : 'offline');
-            if (saveRes.ok) setLastSyncedAt(ts);
+          return;
+        }
+
+        const local = loadStateForUid(user.uid);
+        const ts = Math.max(local.stateUpdatedAt, revisionRef.current, Date.now());
+        const saveRes = await fetch('/api/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            gameState: { ...local, stateUpdatedAt: ts },
+            updatedAt: ts,
+          }),
+        });
+        if (!cancelled) {
+          setSyncStatus(saveRes.ok ? 'synced' : 'offline');
+          if (saveRes.ok) {
+            revisionRef.current = ts;
+            setLastSyncedAt(ts);
           }
         }
       } catch {
-        if (!cancelled) setSyncStatus('offline');
+        if (!cancelled) {
+          cloudHydratedUidRef.current = user.uid;
+          setSyncStatus('offline');
+        }
       }
     };
 
     void pullCloudState();
-
     const onFocus = () => {
       void pullCloudState();
     };
     window.addEventListener('focus', onFocus);
-
     return () => {
       cancelled = true;
       window.removeEventListener('focus', onFocus);
     };
-  }, [user, token]);
+  }, [user, token, applyRemoteState]);
 
-  // Дебаунс-синхронизация локальных изменений в Neon Postgres (/api/sync)
+  // Локальные правки уходят в облако только с более новой меткой времени
   useEffect(() => {
     if (!user || !token || cloudHydratedUidRef.current !== user.uid) return;
-    if (isApplyingCloudRef.current) {
-      isApplyingCloudRef.current = false;
-      return;
-    }
+    if (isApplyingCloudRef.current || skipRevisionBumpRef.current) return;
 
     setSyncStatus('syncing');
     const timer = window.setTimeout(() => {
-      if (!user || !token) return;
-      const ts = Date.now();
-      lastCloudUpdatedAtRef.current = ts;
+      const ts = revisionRef.current;
+      const gameState = { ...rawStateRef.current, stateUpdatedAt: ts };
       void fetch('/api/sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ gameState: rawState, updatedAt: ts }),
+        body: JSON.stringify({ gameState, updatedAt: ts }),
       })
-        .then((res) => {
+        .then(async (res) => {
           if (res.ok) {
             setSyncStatus('synced');
             setLastSyncedAt(ts);
-          } else {
-            setSyncStatus('offline');
+            return;
           }
+          if (res.status === 409) {
+            const body = (await res.json()) as {
+              gameState?: Partial<GameState> | null;
+              updatedAt?: number;
+            };
+            const remoteTs = typeof body.updatedAt === 'number' ? body.updatedAt : 0;
+            if (body.gameState && remoteTs > revisionRef.current) {
+              applyRemoteState(body.gameState, remoteTs);
+            }
+            setSyncStatus('synced');
+            setLastSyncedAt(remoteTs || Date.now());
+            return;
+          }
+          setSyncStatus('offline');
         })
         .catch(() => {
           setSyncStatus('offline');
         });
-    }, 600);
+    }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [rawState, user, token]);
+  }, [rawState, user, token, applyRemoteState]);
 
   const pushNotification = useCallback(
     (notif: Omit<PhoneNotification, 'id' | 'timestamp' | 'read'>) => {
@@ -624,75 +811,93 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   );
 
-  // Секундный тик таймеров и отслеживание готовности
+  // Готовность мышц и таймер подхода проверяются раз в минуту и запоминаются в сейве
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const check = () => {
       const currentNow = Date.now();
       setNow(currentNow);
+      let toast: PhoneNotification | null = null;
 
-      const greaseMission = rawState.missions.find(
-        (m) => m.type === 'grease_the_groove'
-      );
+      setRawState((prev) => {
+        const notes: PhoneNotification[] = [];
+        const recoveryNotifiedAt = { ...(prev.recoveryNotifiedAt ?? {}) };
+        let greaseNotifiedAt = prev.greaseNotifiedAt ?? null;
+        let changed = false;
 
-      // Проверка истечения таймера Grease the Groove
-      if (
-        greaseMission &&
-        rawState.nextGreaseTimestamp !== null &&
-        currentNow >= rawState.nextGreaseTimestamp &&
-        notifiedGreaseTsRef.current !== rawState.nextGreaseTimestamp
-      ) {
-        notifiedGreaseTsRef.current = rawState.nextGreaseTimestamp;
-        pushNotification({
-          contactId: 'coach_dre',
-          title: 'ЦНС заряжена на 100%!',
-          message:
-            'Время пришло! Запрыгни на турник и сделай 1 непредельный подход (Grease the Groove). +Respect ждёт!',
-          actionMissionId: greaseMission.id,
-          category: 'grease_reminder',
-        });
-      }
-
-      // Автоматическая проверка восстановления ВСЕХ групп мышц до >= 85%
-      (Object.keys(rawState.muscleRecovery) as MuscleGroup[]).forEach((group) => {
-        const muscleState = rawState.muscleRecovery[group];
+        const greaseMission = prev.missions.find((m) => m.type === 'grease_the_groove');
         if (
-          muscleState.lastTrainedAt !== null &&
-          muscleState.readyAtTimestamp !== null &&
-          notifiedMuscleTrainedAtRef.current[group] !== muscleState.lastTrainedAt
+          greaseMission &&
+          prev.nextGreaseTimestamp !== null &&
+          currentNow >= prev.nextGreaseTimestamp &&
+          greaseNotifiedAt !== prev.nextGreaseTimestamp
         ) {
-          const readiness = calculateMuscleReadiness(muscleState, currentNow);
-          if (readiness >= 85) {
-            notifiedMuscleTrainedAtRef.current[group] = muscleState.lastTrainedAt;
-
-            const matchingMission =
-              rawState.missions.find(
-                (m) =>
-                  m.isUnlocked &&
-                  m.type !== 'grease_the_groove' &&
-                  m.tasks.some((t) => EXERCISES[t.exerciseId]?.primaryMuscles.includes(group))
-              ) ??
-              rawState.missions.find((m) => m.isUnlocked && m.type === 'main_campaign') ??
-              rawState.missions[0];
-
-            pushNotification({
-              contactId: group === 'back_biceps' ? 'coach_dre' : 'doc_elena',
-              title: `${muscleState.label} готовы`,
-              message: `Группа «${muscleState.label}» восстановилась на ${readiness}% — можно снова давать нагрузку.`,
-              actionMissionId: matchingMission?.id,
-              category: 'recovery_ready',
-            });
-          }
+          greaseNotifiedAt = prev.nextGreaseTimestamp;
+          changed = true;
+          notes.push({
+            id: createUid('notif'),
+            contactId: 'coach_dre',
+            title: 'Можно сделать подход',
+            message: 'Пауза прошла. Один спокойный подход на турнике.',
+            timestamp: currentNow,
+            read: false,
+            actionMissionId: greaseMission.id,
+            category: 'grease_reminder',
+          });
         }
-      });
-    }, 1000);
 
+        (Object.keys(prev.muscleRecovery) as MuscleGroup[]).forEach((group) => {
+          const muscleState = prev.muscleRecovery[group];
+          if (muscleState.lastTrainedAt === null || muscleState.readyAtTimestamp === null) return;
+          if (recoveryNotifiedAt[group] === muscleState.lastTrainedAt) return;
+          const readiness = calculateMuscleReadiness(muscleState, currentNow);
+          if (readiness < 85) return;
+          recoveryNotifiedAt[group] = muscleState.lastTrainedAt;
+          changed = true;
+          const matchingMission =
+            prev.missions.find(
+              (m) =>
+                m.isUnlocked &&
+                m.type !== 'grease_the_groove' &&
+                m.tasks.some((t) => EXERCISES[t.exerciseId]?.primaryMuscles.includes(group))
+            ) ?? prev.missions.find((m) => m.isUnlocked && m.type === 'main_campaign');
+          notes.push({
+            id: createUid('notif'),
+            contactId: group === 'back_biceps' ? 'coach_dre' : 'doc_elena',
+            title: `${muscleState.label} готовы`,
+            message: `«${muscleState.label}» восстановились на ${readiness}%.`,
+            timestamp: currentNow,
+            read: false,
+            actionMissionId: matchingMission?.id,
+            category: 'recovery_ready',
+          });
+        });
+
+        if (!changed) return prev;
+        toast = notes[0] ?? null;
+        if (prev.soundEnabled && notes[0]) playSmsSound();
+        if (notes[0]) {
+          const contact = getContactById(notes[0].contactId);
+          sendBrowserPush(
+            `${contact.name}: ${notes[0].title}`,
+            notes[0].message,
+            prev.browserPushEnabled
+          );
+        }
+        return {
+          ...prev,
+          recoveryNotifiedAt,
+          greaseNotifiedAt,
+          notifications: [...notes, ...prev.notifications].slice(0, 40),
+        };
+      });
+
+      if (toast) setActiveToast(toast);
+    };
+
+    check();
+    const timer = window.setInterval(check, 60_000);
     return () => window.clearInterval(timer);
-  }, [
-    rawState.nextGreaseTimestamp,
-    rawState.muscleRecovery,
-    rawState.missions,
-    pushNotification,
-  ]);
+  }, []);
 
   const recommendation = useMemo(
     () => getNextTrainingRecommendation(state, now),
@@ -936,24 +1141,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
 
       const recoveryNote = isMedkitOrMobility
-        ? 'Здоровье полностью восстановлено (100% HP), а регенерация уставших мышц ускорена на 25%!'
-        : `Спина и бицепс готовы на ${nextRec.pullupReadinessPercent}%${
-            nextRec.msUntilPullupReady > 0
-              ? ` (до 100%: ${formatDurationMs(nextRec.msUntilPullupReady)})`
-              : ''
-          }. ${nextRec.headline}`;
-
-      const luciaQuote = pickLuciaQuote();
-      const luciaNotif: PhoneNotification = {
-        id: createUid('notif'),
-        contactId: 'doc_elena',
-        title: 'Люсии это понравится',
-        message: luciaQuote,
-        timestamp: currentNow,
-        read: false,
-        actionMissionId: targetMission.rewards.unlocksMissionIds?.[0],
-        category: 'lucia_praise',
-      };
+        ? 'Здоровье восстановлено, регенерация мышц ускорена.'
+        : nextRec.headline;
 
       if (rawState.soundEnabled) {
         if (levelResult.leveledUp) {
@@ -963,20 +1152,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      sendBrowserPush(
-        'Люсии это понравится',
-        luciaQuote,
-        rawState.browserPushEnabled
-      );
+      sendBrowserPush(notifItem.title, notifItem.message, rawState.browserPushEnabled);
 
       setRawState((prev) => ({
         ...prev,
         ...nextStatePreview,
-        notifications: [luciaNotif, notifItem, ...prev.notifications].slice(0, 40),
+        greaseNotifiedAt:
+          targetMission.type === 'grease_the_groove' ? null : prev.greaseNotifiedAt,
+        notifications: [notifItem, ...prev.notifications].slice(0, 40),
         history: [logEntry, ...prev.history].slice(0, 100),
       }));
 
-      setActiveToast(luciaNotif);
+      setActiveToast(notifItem);
 
       setMissionPassedSummary({
         missionId: targetMission.id,
@@ -990,8 +1177,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unlockedTitles: levelResult.unlockedTitles,
         recoveryNote,
         progressionNote,
-        luciaQuote,
-        isBigMission: true,
         suggestedNextMissionId: suggestedMission?.id,
         suggestedNextMissionTitle: suggestedMission?.title,
       });
@@ -1027,7 +1212,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const nextGreaseTs =
         currentNow + rawState.activePlan.greaseIntervalMinutes * 60 * 1000;
-      notifiedGreaseTsRef.current = null;
+      // следующий подход сможет прислать новое напоминание
 
       const targetMissionId = greaseMission?.id ?? 'm_grease_pullup';
 
@@ -1251,7 +1436,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     });
 
-    notifiedGreaseTsRef.current = null;
     setIsOnboardingOpen(false);
     setActiveToast(notif);
   }, []);
@@ -1259,13 +1443,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const scheduleGreaseTimer = useCallback((delaySeconds: number) => {
     const safeDelay = Math.max(3, Math.round(delaySeconds));
     const targetTs = Date.now() + safeDelay * 1000;
-    notifiedGreaseTsRef.current = null;
 
     setRawState((prev) => {
       if (prev.soundEnabled) playRadarBlipSound();
       return {
         ...prev,
         nextGreaseTimestamp: targetTs,
+        greaseNotifiedAt: null,
       };
     });
   }, []);
@@ -1517,15 +1701,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetProgress = useCallback(() => {
     const fresh = createInitialState();
-    notifiedGreaseTsRef.current = null;
-    notifiedMuscleTrainedAtRef.current = {};
+    skipRevisionBumpRef.current = true;
+    revisionRef.current = 0;
     setRawState(fresh);
     setMissionPassedSummary(null);
     setActiveToast(null);
     setIsOnboardingOpen(true);
     try {
       if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(storageKeyFor(scopeUidRef.current));
+        window.localStorage.removeItem(LEGACY_STORAGE_KEY);
       }
     } catch {
       // ignore
@@ -1605,9 +1790,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setRawState((prev) => {
         if (prev.soundEnabled) playRadarBlipSound();
+        const groupId = newMission.groupId || 'tasks';
+        const hasGroup = prev.missionGroups.some((group) => group.id === groupId);
+        const missionGroups = hasGroup
+          ? prev.missionGroups
+          : [
+              ...prev.missionGroups,
+              {
+                id: groupId,
+                name: 'Дела',
+                description: 'Свои списки',
+                icon: 'Sparkles',
+                color: '#E5A3BD',
+                mapMarkerCode: 'M',
+                isCustom: true,
+              },
+            ];
         return {
           ...prev,
-          lifeMissions: [newMission, ...prev.lifeMissions],
+          missionGroups,
+          lifeMissions: [{ ...newMission, groupId }, ...prev.lifeMissions],
         };
       });
 
@@ -1692,23 +1894,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleLifeSubMission = useCallback(
     (missionId: string, subMissionId: string) => {
+      let toast: PhoneNotification | null = null;
       setRawState((prev) => {
-        if (prev.soundEnabled) playRadarBlipSound();
-        return {
+        const toggled: GameState = {
           ...prev,
-          lifeMissions: prev.lifeMissions.map((m) => {
-            if (m.id !== missionId) return m;
+          lifeMissions: prev.lifeMissions.map((mission) => {
+            if (mission.id !== missionId || mission.status === 'completed') return mission;
             return {
-              ...m,
-              subMissions: m.subMissions.map((sub) =>
-                sub.id === subMissionId
-                  ? { ...sub, completed: !sub.completed }
-                  : sub
+              ...mission,
+              subMissions: mission.subMissions.map((sub) =>
+                sub.id === subMissionId ? { ...sub, completed: !sub.completed } : sub
               ),
             };
           }),
         };
+        const settled = settleLifeMission(toggled, missionId);
+        if (!settled) return toggled;
+        toast = settled.toast;
+        if (prev.soundEnabled) playMissionPassedSound();
+        sendBrowserPush(settled.toast.title, settled.toast.message, prev.browserPushEnabled);
+        return settled.state;
       });
+      if (toast) setActiveToast(toast);
     },
     []
   );
@@ -1763,157 +1970,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   );
 
-  const completeLifeMission = useCallback(
-    (missionId: string) => {
-      const target = rawState.lifeMissions.find((m) => m.id === missionId);
-      if (!target || target.status === 'completed') return;
-
-      const currentNow = Date.now();
-      const earnedRespect = target.rewardRespect;
-      const earnedCash = target.rewardCash;
-      const healthBonus = target.rewardHealth;
-
-      const newRespectXp = rawState.respectXp + earnedRespect;
-      const levelResult = applyLevelProgress(
-        rawState.level,
-        newRespectXp,
-        rawState.nextLevelXp,
-        rawState.stats.maxHp
-      );
-
-      const nextStats: CharacterStatsBars = {
-        ...rawState.stats,
-        healthLevel: clampStat(
-          rawState.stats.healthLevel + Math.ceil(healthBonus / 2)
-        ),
-        maxHp: levelResult.maxHp,
-        currentHp: levelResult.leveledUp
-          ? levelResult.maxHp
-          : Math.min(levelResult.maxHp, rawState.stats.currentHp + healthBonus),
-        discipline: clampStat(rawState.stats.discipline + 2),
-      };
-
-      const todayKey = getDateKey(currentNow);
-      const yesterdayKey = getYesterdayDateKey(currentNow);
-      let nextStreak = rawState.streakDays;
-      if (rawState.lastWorkoutDate !== todayKey) {
-        nextStreak =
-          rawState.lastWorkoutDate === yesterdayKey ? rawState.streakDays + 1 : 1;
-      }
-
-      const todayCount =
-        rawState.history.filter((h) => getDateKey(h.completedAt) === todayKey)
-          .length + 1;
-      const nextHeatStars = Math.min(
-        6,
-        Math.max(1, 1 + Math.floor(nextStreak / 2) + (todayCount >= 2 ? 1 : 0))
-      );
-
-      const nextLifeMissions: LifeMission[] = rawState.lifeMissions.map((m) =>
-        m.id === missionId
-          ? {
-              ...m,
-              status: 'completed',
-              completedAt: currentNow,
-              timesCompleted: m.timesCompleted + 1,
-              subMissions: m.subMissions.map((sub) => ({
-                ...sub,
-                completed: true,
-              })),
-            }
-          : m
-      );
-
-      const logEntry: WorkoutLogEntry = {
-        id: createUid('log'),
-        missionId: target.id,
-        missionTitle: target.title,
-        completedAt: currentNow,
-        totalSets: Math.max(1, target.subMissions.length),
-        totalRepsOrSec: Math.max(1, target.subMissions.length),
-        earnedRespect,
-        earnedCash,
-      };
-
-      const luciaQuote = target.isBigMission ? pickLuciaQuote() : undefined;
-      const notifItem: PhoneNotification = luciaQuote
-        ? {
-            id: createUid('notif'),
-            contactId: 'doc_elena',
-            title: 'Люсии это понравится',
-            message: luciaQuote,
-            timestamp: currentNow,
-            read: false,
-            category: 'lucia_praise',
-          }
-        : {
-            id: createUid('notif'),
-            contactId: 'coach_dre',
-            title: `Миссия выполнена: ${target.title}`,
-            message:
-              target.jokeQuote ||
-              `Отличная работа! Зачислено +${earnedRespect} XP и +$${earnedCash}.`,
-            timestamp: currentNow,
-            read: false,
-            category: 'mission_passed',
-          };
-
-      if (rawState.soundEnabled) {
-        if (levelResult.leveledUp) {
-          playLevelUpSound();
-        } else {
-          playMissionPassedSound();
-        }
-      }
-
-      if (luciaQuote) {
-        sendBrowserPush(
-          'Люсии это понравится',
-          luciaQuote,
-          rawState.browserPushEnabled
-        );
-      }
-
-      setRawState((prev) => ({
-        ...prev,
-        level: levelResult.level,
-        rankTitle: getRankTitle(levelResult.level),
-        respectXp: newRespectXp,
-        nextLevelXp: levelResult.nextLevelXp,
-        cash: prev.cash + earnedCash,
-        streakDays: nextStreak,
-        heatStars: nextHeatStars,
-        lastWorkoutDate: todayKey,
-        stats: nextStats,
-        lifeMissions: nextLifeMissions,
-        notifications: [notifItem, ...prev.notifications].slice(0, 40),
-        history: [logEntry, ...prev.history].slice(0, 100),
-      }));
-
-      setActiveToast(notifItem);
-
-      setMissionPassedSummary({
-        missionId: target.id,
-        missionTitle: target.title,
-        earnedRespect,
-        earnedCash,
-        healthBonus,
-        leveledUp: levelResult.leveledUp,
-        newLevel: levelResult.level,
-        statBoosts: {
-          healthLevel: Math.ceil(healthBonus / 2),
-          discipline: 2,
-        },
-        unlockedTitles: levelResult.unlockedTitles,
-        recoveryNote:
-          target.jokeQuote ||
-          'Порядок на базе и в делах укрепляет здоровье и боевой настрой.',
-        luciaQuote,
-        isBigMission: target.isBigMission,
+  const completeLifeMission = useCallback((missionId: string) => {
+      let toast: PhoneNotification | null = null;
+      setRawState((prev) => {
+        const target = prev.lifeMissions.find((mission) => mission.id === missionId);
+        if (!target || target.status === 'completed' || !checklistComplete(target)) return prev;
+        const settled = settleLifeMission(prev, missionId);
+        if (!settled) return prev;
+        toast = settled.toast;
+        if (prev.soundEnabled) playMissionPassedSound();
+        sendBrowserPush(settled.toast.title, settled.toast.message, prev.browserPushEnabled);
+        return settled.state;
       });
-    },
-    [rawState]
-  );
+      if (toast) setActiveToast(toast);
+    }, []);
 
   const reopenLifeMission = useCallback((missionId: string) => {
     setRawState((prev) => {

@@ -24,12 +24,10 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
-import { MISSION_TEMPLATES } from '../../data/lifeMissions';
 import {
   LifeMission,
   LifeSubMission,
   MissionGroup,
-  MissionTemplate,
 } from '../../types/game';
 import { MissionBuilderModal } from './MissionBuilderModal';
 
@@ -39,7 +37,7 @@ interface LifeMissionsHubProps {
   onFocusOnMap?: (missionId: string) => void;
 }
 
-type HubSubTab = 'active' | 'templates' | 'completed';
+type HubSubTab = 'active' | 'completed';
 
 const LUCIDE_GROUP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Dumbbell,
@@ -81,13 +79,10 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
 }) => {
   const {
     state,
-    startMission,
-    addLifeMissionFromTemplate,
     deleteLifeMission,
     toggleLifeSubMission,
     addLifeSubMission,
     removeLifeSubMission,
-    completeLifeMission,
     reopenLifeMission,
     deleteMissionGroup,
   } = useGame();
@@ -145,14 +140,6 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
     return counts;
   }, [lifeMissions]);
 
-  const activeFitnessMissions = useMemo(
-    () =>
-      state.missions.filter(
-        (m) => m.isUnlocked && m.type !== 'grease_the_groove'
-      ),
-    [state.missions]
-  );
-
   const filteredActiveMissions = useMemo(
     () =>
       lifeMissions.filter(
@@ -190,21 +177,6 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
       ).length,
     [lifeMissions, selectedGroupId]
   );
-
-  const templatesBySection = useMemo(() => {
-    const pool =
-      selectedGroupId === 'all'
-        ? MISSION_TEMPLATES
-        : MISSION_TEMPLATES.filter((t) => t.groupId === selectedGroupId);
-
-    return {
-      homeRepair: pool.filter((t) => t.groupId === 'home_repair'),
-      shopping: pool.filter((t) => t.groupId === 'shopping'),
-      lifeAndEvents: pool.filter(
-        (t) => t.groupId !== 'home_repair' && t.groupId !== 'shopping'
-      ),
-    };
-  }, [selectedGroupId]);
 
   const getDraft = (missionId: string): SubMissionAddDraft =>
     draftsByMissionId[missionId] ?? { title: '', quantity: '', tag: '' };
@@ -352,7 +324,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
         : mission.status === 'completed'
         ? 100
         : 0;
-    const allSubsDone = totalSubs === 0 || doneSubs >= totalSubs;
+    const allSubsDone = totalSubs > 0 && doneSubs >= totalSubs;
     const isHighlighted = highlightedMissionId === mission.id;
     const draft = getDraft(mission.id);
 
@@ -429,18 +401,11 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           </button>
         </div>
 
-        {/* Joke Quote */}
-        {mission.jokeQuote && (
-          <div className="px-3.5 py-2.5 rounded-[14px] bg-[#131417] border border-white/[0.06] text-[12px] italic text-[#C8CAD0] leading-relaxed">
-            «{mission.jokeQuote}»
-          </div>
-        )}
-
         {/* Map Pin & Rewards Row */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium tabular-nums">
             <span className="px-2.5 py-1 rounded-full bg-[#E5A3BD]/12 text-[#E5A3BD]">
-              +{mission.rewardRespect} Respect
+              +{mission.rewardRespect} XP
             </span>
             <span className="px-2.5 py-1 rounded-full bg-[#7ED484]/12 text-[#7ED484]">
               +${mission.rewardCash}
@@ -572,23 +537,11 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
 
           {mission.status === 'active' ? (
             <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() => completeLifeMission(mission.id)}
-                className={`w-full h-11 rounded-[15px] text-[14px] font-semibold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition ${
-                  allSubsDone
-                    ? 'apple-sunset-cta text-[#111214]'
-                    : 'apple-card-elevated text-white hover:bg-[#32343B]'
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Завершить миссию</span>
-              </button>
-              {mission.isBigMission && (
-                <p className="text-center text-[11px] text-[#E5A3BD]/90">
-                  Большая миссия: после завершения придёт поощрение («Люсии это понравится»)
-                </p>
-              )}
+              <p className="text-center text-[12px] text-[#8E9098]">
+                {allSubsDone
+                  ? 'Все пункты отмечены'
+                  : 'Отметь каждый пункт. Тогда придёт «Люсии это понравится».'}
+              </p>
             </div>
           ) : (
             <button
@@ -605,146 +558,16 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
     );
   };
 
-  const renderTemplateCard = (tpl: MissionTemplate) => {
-    const group = groupMap.get(tpl.groupId);
-    const accentColor = group?.color ?? '#E5A3BD';
-    const markerCode = group?.mapMarkerCode ?? '?';
-
-    const activeMatch = lifeMissions.some(
-      (m) => m.isFromTemplateId === tpl.id && m.status === 'active'
-    );
-    const completedNonRepeatable =
-      !tpl.repeatable &&
-      lifeMissions.some(
-        (m) => m.isFromTemplateId === tpl.id && m.status === 'completed'
-      );
-    const alreadyInList = activeMatch || completedNonRepeatable;
-
-    return (
-      <article
-        key={tpl.id}
-        className="rounded-[22px] apple-card p-5 flex flex-col justify-between gap-4"
-      >
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className="w-9 h-9 rounded-[12px] flex items-center justify-center text-[13px] font-bold shrink-0 border"
-                style={{
-                  backgroundColor: `${accentColor}1F`,
-                  borderColor: `${accentColor}55`,
-                  color: accentColor,
-                }}
-              >
-                {markerCode}
-              </div>
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[#8E9098] truncate">
-                  {tpl.badgeLabel || group?.name}
-                </div>
-                <h3 className="text-[16px] font-semibold text-white leading-snug">
-                  {tpl.title}
-                </h3>
-              </div>
-            </div>
-
-            {tpl.isBigMission && (
-              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E5A3BD]/15 border border-[#E5A3BD]/35 text-[11px] font-semibold text-[#E5A3BD]">
-                <Heart className="w-3 h-3" />
-                Большая
-              </span>
-            )}
-          </div>
-
-          <p className="text-[13px] text-[#98989F] leading-relaxed">{tpl.subtitle}</p>
-
-          {tpl.jokeQuote && (
-            <div className="px-3 py-2 rounded-[12px] bg-[#131417] border border-white/[0.06] text-[12px] italic text-[#C8CAD0]">
-              «{tpl.jokeQuote}»
-            </div>
-          )}
-
-          {tpl.defaultSubMissions.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[#636366]">
-                Пункты ({tpl.defaultSubMissions.length})
-              </div>
-              <ul className="space-y-1 text-[12px] text-[#D1D3D9]">
-                {tpl.defaultSubMissions.slice(0, 4).map((s, idx) => (
-                  <li key={idx} className="flex items-center justify-between gap-2">
-                    <span className="truncate">• {s.title}</span>
-                    {s.quantity && (
-                      <span className="shrink-0 text-[11px] text-[#8E9098]">
-                        {s.quantity}
-                      </span>
-                    )}
-                  </li>
-                ))}
-                {tpl.defaultSubMissions.length > 4 && (
-                  <li className="text-[11px] text-[#8E9098]">
-                    + ещё {tpl.defaultSubMissions.length - 4} шт.
-                  </li>
-                )}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-3 pt-1">
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium tabular-nums">
-            <span className="px-2 py-0.5 rounded-full bg-[#E5A3BD]/12 text-[#E5A3BD]">
-              +{tpl.rewardRespect} Respect
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-[#7ED484]/12 text-[#7ED484]">
-              +${tpl.rewardCash}
-            </span>
-            {tpl.rewardHealth > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-[#8AE5C3]/12 text-[#8AE5C3]">
-                +{tpl.rewardHealth} HP
-              </span>
-            )}
-          </div>
-
-          <button
-            type="button"
-            disabled={alreadyInList}
-            onClick={() => addLifeMissionFromTemplate(tpl.id)}
-            className={`w-full h-10 rounded-[14px] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 transition ${
-              alreadyInList
-                ? 'bg-[#30D158]/15 text-[#7ED484] border border-[#30D158]/30 cursor-default'
-                : 'apple-sunset-cta text-[#111214] active:scale-[0.98]'
-            }`}
-          >
-            {alreadyInList ? (
-              <>
-                <Check className="w-4 h-4" />
-                <span>Уже в списке</span>
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                <span>Добавить в мои миссии</span>
-              </>
-            )}
-          </button>
-        </div>
-      </article>
-    );
-  };
-
   return (
     <div className="px-5 md:px-0 pt-5 pb-10 space-y-6">
       {/* Header */}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className="text-[12px] font-medium text-[#E5A3BD]">
-            Life is Game · Solis 2.0
-          </span>
-          <h1 className="mt-0.5 text-[28px] md:text-[32px] font-semibold tracking-[-0.025em] text-white leading-tight">
-            Центр миссий
+          <h1 className="text-[28px] md:text-[32px] font-semibold tracking-[-0.025em] text-white leading-tight">
+            Миссии
           </h1>
           <p className="mt-1 text-[13px] text-[#8E9098]">
-            Все цели жизни на одном радаре: от турника и закупок до ремонта убежища.
+            Одна миссия — список пунктов. Пока не отмечено всё, она не закрыта.
           </p>
         </div>
 
@@ -783,10 +606,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
 
         {missionGroups.map((group) => {
           const isSelected = selectedGroupId === group.id;
-          const count =
-            group.id === 'fitness'
-              ? activeFitnessMissions.length
-              : activeLifeCountByGroup.get(group.id) ?? 0;
+          const count = activeLifeCountByGroup.get(group.id) ?? 0;
 
           return (
             <button
@@ -873,11 +693,10 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
       )}
 
       {/* Sub-tabs: Активные · Шаблоны · Выполненные */}
-      <div className="grid grid-cols-3 gap-1.5 p-1 rounded-[16px] bg-[#131417] border border-white/[0.07] max-w-md">
+      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-[16px] bg-[#131417] border border-white/[0.07] max-w-md">
         {(
           [
             { id: 'active', label: 'Активные', count: totalActiveCount },
-            { id: 'templates', label: 'Шаблоны', count: MISSION_TEMPLATES.length },
             { id: 'completed', label: 'Выполненные', count: totalCompletedCount },
           ] as Array<{ id: HubSubTab; label: string; count: number }>
         ).map((tab) => {
@@ -898,68 +717,6 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
         })}
       </div>
 
-      {/* Embedded Fitness Block when group === 'fitness' */}
-      {selectedGroupId === 'fitness' && subTab !== 'templates' && (
-        <section className="rounded-[24px] apple-card-active p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#E5A3BD]">
-                Фитнес-кампания Solis
-              </span>
-              <h2 className="mt-0.5 text-[20px] font-semibold text-white">
-                Тренировочные миссии
-              </h2>
-            </div>
-
-            {onOpenFitnessTab && (
-              <button
-                type="button"
-                onClick={onOpenFitnessTab}
-                className="h-9 px-3.5 rounded-full apple-card-elevated hover:bg-[#32343B] text-[12px] font-semibold text-white inline-flex items-center gap-1.5 active:scale-95 transition"
-              >
-                <span>Перейти в Фитнес-хаб</span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-[#E5A3BD]" />
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {activeFitnessMissions.map((m) => (
-              <div
-                key={m.id}
-                className="rounded-[18px] bg-[#131417] border border-white/[0.07] p-4 flex flex-col justify-between gap-3"
-              >
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-[#E5A3BD]/15 text-[11px] font-bold text-[#E5A3BD]">
-                      {m.code}
-                    </span>
-                    <span className="text-[11px] text-[#8E9098] tabular-nums">
-                      Упражнений: {m.tasks.length} · Выполнено: {m.timesCompleted}
-                    </span>
-                  </div>
-                  <h3 className="text-[15px] font-semibold text-white">{m.title}</h3>
-                  <p className="text-[12px] text-[#8E9098] line-clamp-2">{m.subtitle}</p>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <div className="text-[12px] font-medium text-[#8AE5C3] tabular-nums">
-                    +{m.rewards.respectXp} XP · +${m.rewards.cash}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => startMission(m.id)}
-                    className="h-9 px-3.5 rounded-[12px] apple-sunset-cta text-[#111214] text-[12px] font-semibold inline-flex items-center gap-1.5 active:scale-95 transition"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>Начать тренировку</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* ACTIVE TAB */}
       {subTab === 'active' && (
@@ -969,125 +726,28 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
               {filteredActiveMissions.map((mission) => renderMissionCard(mission))}
             </div>
           ) : (
-            selectedGroupId !== 'fitness' && (
               <div className="rounded-[24px] apple-card p-8 text-center space-y-4">
-                <div className="w-12 h-12 mx-auto rounded-full bg-white/[0.06] flex items-center justify-center text-[#E5A3BD]">
-                  <Sparkles className="w-6 h-6" />
-                </div>
                 <div className="space-y-1">
                   <h3 className="text-[18px] font-semibold text-white">
-                    В этой группе пока нет активных миссий
+                    Миссий пока нет
                   </h3>
                   <p className="text-[13px] text-[#8E9098] max-w-md mx-auto">
-                    Создай свою миссию в конструкторе или выбери готовый сценарий во вкладке «Шаблоны».
+                    Например: «Сходить в магазин» и пункты — молоко, хлеб, яйца. Миссия закроется, когда отметишь каждый.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={openNewMissionModal}
-                    className="h-10 px-4 rounded-full apple-sunset-cta text-[#111214] text-[13px] font-semibold inline-flex items-center gap-1.5 active:scale-95 transition"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Создать миссию</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSubTab('templates')}
-                    className="h-10 px-4 rounded-full apple-card-elevated hover:bg-[#32343B] text-[13px] font-semibold text-white active:scale-95 transition"
-                  >
-                    Открыть шаблоны
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={openNewMissionModal}
+                  className="h-10 px-4 rounded-full apple-sunset-cta text-[#111214] text-[13px] font-semibold inline-flex items-center gap-1.5 active:scale-95 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Создать миссию</span>
+                </button>
               </div>
-            )
           )}
         </section>
       )}
 
-      {/* TEMPLATES TAB */}
-      {subTab === 'templates' && (
-        <section className="space-y-8">
-          {templatesBySection.homeRepair.length > 0 && (
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#E5C97B]">
-                    Сюжетная линия убежища
-                  </span>
-                  <h2 className="text-[20px] font-semibold text-white">
-                    Ремонт убежища · Глава I
-                  </h2>
-                </div>
-                <span className="text-[12px] text-[#8E9098]">
-                  Выбирай нужные этапы
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {templatesBySection.homeRepair.map(renderTemplateCard)}
-              </div>
-            </div>
-          )}
-
-          {templatesBySection.shopping.length > 0 && (
-            <div className="space-y-3.5">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8AE5C3]">
-                  Провизия и быт
-                </span>
-                <h2 className="text-[20px] font-semibold text-white">
-                  Магазин и Провизия
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {templatesBySection.shopping.map(renderTemplateCard)}
-              </div>
-            </div>
-          )}
-
-          {templatesBySection.lifeAndEvents.length > 0 && (
-            <div className="space-y-3.5">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#E5A3BD]">
-                  Дела, рост и случайные вызовы
-                </span>
-                <h2 className="text-[20px] font-semibold text-white">
-                  Жизнь и События
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {templatesBySection.lifeAndEvents.map(renderTemplateCard)}
-              </div>
-            </div>
-          )}
-
-          {templatesBySection.homeRepair.length === 0 &&
-            templatesBySection.shopping.length === 0 &&
-            templatesBySection.lifeAndEvents.length === 0 && (
-              <div className="rounded-[24px] apple-card p-8 text-center space-y-3">
-                <p className="text-[14px] text-[#98989F]">
-                  Для выбранной группы нет готовых шаблонов.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedGroupId('all')}
-                    className="h-10 px-4 rounded-full apple-card-elevated text-[13px] font-semibold text-white"
-                  >
-                    Показать все шаблоны
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openNewMissionModal}
-                    className="h-10 px-4 rounded-full apple-sunset-cta text-[#111214] text-[13px] font-semibold"
-                  >
-                    Создать вручную
-                  </button>
-                </div>
-              </div>
-            )}
-        </section>
-      )}
 
       {/* COMPLETED TAB */}
       {subTab === 'completed' && (
