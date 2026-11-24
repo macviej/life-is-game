@@ -186,6 +186,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 50,
     cashPerSet: 45,
     healthBonus: 2,
+    supportsWeight: true,
+    defaultWeightKg: 5,
   },
   {
     id: 'chin_ups',
@@ -206,6 +208,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 46,
     cashPerSet: 40,
     healthBonus: 1,
+    supportsWeight: true,
+    defaultWeightKg: 5,
   },
   {
     id: 'wide_pullups',
@@ -226,6 +230,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 55,
     cashPerSet: 50,
     healthBonus: 1,
+    supportsWeight: true,
+    defaultWeightKg: 5,
   },
   {
     id: 'hanging_knee_raises',
@@ -266,6 +272,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 65,
     cashPerSet: 60,
     healthBonus: 2,
+    supportsWeight: true,
+    defaultWeightKg: 5,
   },
   {
     id: 'muscle_up_prog',
@@ -328,6 +336,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 45,
     cashPerSet: 40,
     healthBonus: 2,
+    supportsWeight: true,
+    defaultWeightKg: 8,
   },
   {
     id: 'dip_bar_l_sit',
@@ -430,6 +440,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 52,
     cashPerSet: 48,
     healthBonus: 1,
+    supportsWeight: true,
+    defaultWeightKg: 16,
   },
   {
     id: 'barbell_squat',
@@ -450,6 +462,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 60,
     cashPerSet: 55,
     healthBonus: 2,
+    supportsWeight: true,
+    defaultWeightKg: 60,
   },
   {
     id: 'barbell_bench_press',
@@ -470,6 +484,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 58,
     cashPerSet: 52,
     healthBonus: 1,
+    supportsWeight: true,
+    defaultWeightKg: 50,
   },
   {
     id: 'kettlebell_swing',
@@ -490,6 +506,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 48,
     cashPerSet: 45,
     healthBonus: 2,
+    supportsWeight: true,
+    defaultWeightKg: 16,
   },
   {
     id: 'bicep_curls',
@@ -510,6 +528,8 @@ export const EXERCISE_LIST: Exercise[] = [
     xpPerSet: 34,
     cashPerSet: 30,
     healthBonus: 1,
+    supportsWeight: true,
+    defaultWeightKg: 12,
   },
 
   // Г. Категория cardio_street (Кардио и Уличная выносливость)

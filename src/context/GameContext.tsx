@@ -10,6 +10,12 @@ import React, {
 import { useAuth } from './AuthContext';
 import { getContactById } from '../data/contacts';
 import { EXERCISES } from '../data/exercises';
+import {
+  DEFAULT_MISSION_GROUPS,
+  INITIAL_LIFE_MISSIONS,
+  LUCIA_PRAISE_QUOTES,
+  MISSION_TEMPLATES,
+} from '../data/lifeMissions';
 import { createInitialMissions, createInitialRewards } from '../data/missions';
 import { generateOptimalPlan } from '../engine/planGenerator';
 import {
@@ -29,8 +35,12 @@ import {
   CloudSyncStatus,
   GameContextValue,
   GameState,
+  LifeMission,
+  LifeSubMission,
   Mission,
   MissionExerciseTask,
+  MissionGroup,
+  MissionMapPin,
   MissionPassedSummary,
   MuscleGroup,
   MuscleRecoveryState,
@@ -62,6 +72,29 @@ function getYesterdayDateKey(timestamp: number): string {
 
 function createUid(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function pickLuciaQuote(): string {
+  return LUCIA_PRAISE_QUOTES[
+    Math.floor(Math.random() * LUCIA_PRAISE_QUOTES.length)
+  ];
+}
+
+function normalizeUserLocation(
+  loc: unknown
+): { lat: number; lng: number } | null {
+  if (
+    loc &&
+    typeof loc === 'object' &&
+    typeof (loc as { lat?: unknown }).lat === 'number' &&
+    typeof (loc as { lng?: unknown }).lng === 'number'
+  ) {
+    return {
+      lat: (loc as { lat: number }).lat,
+      lng: (loc as { lng: number }).lng,
+    };
+  }
+  return null;
 }
 
 function createInitialState(): GameState {
@@ -106,6 +139,10 @@ function createInitialState(): GameState {
     muscleRecovery: createInitialMuscleRecovery(),
     missions,
     activeMissionId: null,
+    missionGroups: DEFAULT_MISSION_GROUPS,
+    lifeMissions: INITIAL_LIFE_MISSIONS,
+    mapMode: 'real',
+    userLocation: null,
     nextGreaseTimestamp: null,
     notifications: [
       {
@@ -200,6 +237,18 @@ function loadSavedState(): GameState {
         ...recalibrated.plan,
       },
       muscleRecovery: { ...fallback.muscleRecovery, ...parsed.muscleRecovery },
+      missionGroups:
+        Array.isArray(parsed.missionGroups) && parsed.missionGroups.length > 0
+          ? parsed.missionGroups
+          : fallback.missionGroups,
+      lifeMissions: Array.isArray(parsed.lifeMissions)
+        ? parsed.lifeMissions
+        : fallback.lifeMissions,
+      mapMode:
+        parsed.mapMode === 'solis' || parsed.mapMode === 'real'
+          ? parsed.mapMode
+          : fallback.mapMode,
+      userLocation: normalizeUserLocation(parsed.userLocation),
       notifications: Array.isArray(parsed.notifications)
         ? parsed.notifications
         : fallback.notifications,
@@ -442,6 +491,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               stats: { ...prev.stats, ...(data.stats ?? {}) },
               activePlan: { ...prev.activePlan, ...(data.activePlan ?? {}) },
               muscleRecovery: { ...prev.muscleRecovery, ...(data.muscleRecovery ?? {}) },
+              missionGroups:
+                Array.isArray(data.missionGroups) && data.missionGroups.length > 0
+                  ? data.missionGroups
+                  : prev.missionGroups,
+              lifeMissions: Array.isArray(data.lifeMissions)
+                ? data.lifeMissions
+                : prev.lifeMissions,
+              mapMode:
+                data.mapMode === 'solis' || data.mapMode === 'real'
+                  ? data.mapMode
+                  : prev.mapMode,
+              userLocation:
+                data.userLocation !== undefined
+                  ? normalizeUserLocation(data.userLocation)
+                  : prev.userLocation,
             }));
             if (data.onboardingCompleted) {
               setIsOnboardingOpen(false);
@@ -879,6 +943,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               : ''
           }. ${nextRec.headline}`;
 
+      const luciaQuote = pickLuciaQuote();
+      const luciaNotif: PhoneNotification = {
+        id: createUid('notif'),
+        contactId: 'doc_elena',
+        title: 'Люсии это понравится',
+        message: luciaQuote,
+        timestamp: currentNow,
+        read: false,
+        actionMissionId: targetMission.rewards.unlocksMissionIds?.[0],
+        category: 'lucia_praise',
+      };
+
       if (rawState.soundEnabled) {
         if (levelResult.leveledUp) {
           playLevelUpSound();
@@ -887,12 +963,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      sendBrowserPush(
+        'Люсии это понравится',
+        luciaQuote,
+        rawState.browserPushEnabled
+      );
+
       setRawState((prev) => ({
         ...prev,
         ...nextStatePreview,
-        notifications: [notifItem, ...prev.notifications].slice(0, 40),
+        notifications: [luciaNotif, notifItem, ...prev.notifications].slice(0, 40),
         history: [logEntry, ...prev.history].slice(0, 100),
       }));
+
+      setActiveToast(luciaNotif);
 
       setMissionPassedSummary({
         missionId: targetMission.id,
@@ -906,6 +990,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unlockedTitles: levelResult.unlockedTitles,
         recoveryNote,
         progressionNote,
+        luciaQuote,
+        isBigMission: true,
         suggestedNextMissionId: suggestedMission?.id,
         suggestedNextMissionTitle: suggestedMission?.title,
       });
@@ -1407,6 +1493,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : fallback.activePlan.weeklySchedule,
         },
         muscleRecovery: { ...fallback.muscleRecovery, ...parsed.muscleRecovery },
+        missionGroups:
+          Array.isArray(parsed.missionGroups) && parsed.missionGroups.length > 0
+            ? parsed.missionGroups
+            : fallback.missionGroups,
+        lifeMissions: Array.isArray(parsed.lifeMissions)
+          ? parsed.lifeMissions
+          : fallback.lifeMissions,
+        mapMode:
+          parsed.mapMode === 'solis' || parsed.mapMode === 'real'
+            ? parsed.mapMode
+            : fallback.mapMode,
+        userLocation: normalizeUserLocation(parsed.userLocation),
       };
       setRawState(restored);
       setIsOnboardingOpen(!restored.onboardingCompleted);
@@ -1433,6 +1531,452 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // ignore
     }
   }, []);
+
+  // ==========================================
+  // Life is Game 2.0: Universal Mission Actions
+  // ==========================================
+
+  const createMissionGroup = useCallback(
+    (input: {
+      name: string;
+      description: string;
+      icon: string;
+      color: string;
+      mapMarkerCode: string;
+    }): MissionGroup => {
+      const newGroup: MissionGroup = {
+        id: createUid('grp'),
+        name: input.name.trim() || 'Новая ветка',
+        description: input.description.trim() || 'Пользовательская категория миссий',
+        icon: input.icon.trim() || 'Flag',
+        color: input.color.trim() || '#5CE1E6',
+        mapMarkerCode: (input.mapMarkerCode.trim() || 'M').slice(0, 2).toUpperCase(),
+        isCustom: true,
+        isSystem: false,
+      };
+
+      setRawState((prev) => {
+        if (prev.soundEnabled) playRadarBlipSound();
+        return {
+          ...prev,
+          missionGroups: [...prev.missionGroups, newGroup],
+        };
+      });
+
+      return newGroup;
+    },
+    []
+  );
+
+  const deleteMissionGroup = useCallback((groupId: string) => {
+    setRawState((prev) => {
+      const target = prev.missionGroups.find((g) => g.id === groupId);
+      if (!target || target.isSystem) return prev;
+      if (prev.soundEnabled) playRadarBlipSound();
+      return {
+        ...prev,
+        missionGroups: prev.missionGroups.filter((g) => g.id !== groupId),
+        lifeMissions: prev.lifeMissions.filter((m) => m.groupId !== groupId),
+      };
+    });
+  }, []);
+
+  const createLifeMission = useCallback(
+    (
+      input: Omit<LifeMission, 'id' | 'status' | 'createdAt' | 'timesCompleted'>
+    ): LifeMission => {
+      const nowTs = Date.now();
+      const normalizedSubMissions: LifeSubMission[] = (input.subMissions ?? []).map(
+        (sub, idx) => ({
+          ...sub,
+          id: sub.id || createUid(`sub_${idx}`),
+          completed: Boolean(sub.completed),
+        })
+      );
+
+      const newMission: LifeMission = {
+        ...input,
+        id: createUid('life'),
+        subMissions: normalizedSubMissions,
+        status: 'active',
+        createdAt: nowTs,
+        timesCompleted: 0,
+      };
+
+      setRawState((prev) => {
+        if (prev.soundEnabled) playRadarBlipSound();
+        return {
+          ...prev,
+          lifeMissions: [newMission, ...prev.lifeMissions],
+        };
+      });
+
+      return newMission;
+    },
+    []
+  );
+
+  const addLifeMissionFromTemplate = useCallback(
+    (
+      templateId: string,
+      overrides?: Partial<LifeMission>
+    ): LifeMission | null => {
+      const tpl = MISSION_TEMPLATES.find((t) => t.id === templateId);
+      if (!tpl) return null;
+
+      const nowTs = Date.now();
+      const defaultSubs: LifeSubMission[] = tpl.defaultSubMissions.map((s, idx) => ({
+        id: createUid(`sub_${idx}`),
+        title: s.title,
+        completed: false,
+        quantity: s.quantity,
+        categoryTag: s.categoryTag,
+        note: s.note,
+      }));
+
+      const newMission: LifeMission = {
+        id: createUid('life'),
+        groupId: tpl.groupId,
+        title: tpl.title,
+        subtitle: tpl.subtitle,
+        kind: tpl.kind,
+        isBigMission: tpl.isBigMission,
+        isFromTemplateId: tpl.id,
+        jokeQuote: tpl.jokeQuote,
+        subMissions: defaultSubs,
+        mapPin: tpl.defaultMapPin ? { ...tpl.defaultMapPin } : undefined,
+        rewardRespect: tpl.rewardRespect,
+        rewardCash: tpl.rewardCash,
+        rewardHealth: tpl.rewardHealth,
+        repeatable: tpl.repeatable,
+        ...overrides,
+        status: 'active',
+        createdAt: nowTs,
+        timesCompleted: 0,
+      };
+
+      setRawState((prev) => {
+        if (prev.soundEnabled) playRadarBlipSound();
+        return {
+          ...prev,
+          lifeMissions: [newMission, ...prev.lifeMissions],
+        };
+      });
+
+      return newMission;
+    },
+    []
+  );
+
+  const updateLifeMission = useCallback(
+    (missionId: string, patch: Partial<LifeMission>) => {
+      setRawState((prev) => ({
+        ...prev,
+        lifeMissions: prev.lifeMissions.map((m) =>
+          m.id === missionId ? { ...m, ...patch, id: m.id } : m
+        ),
+      }));
+    },
+    []
+  );
+
+  const deleteLifeMission = useCallback((missionId: string) => {
+    setRawState((prev) => {
+      if (prev.soundEnabled) playRadarBlipSound();
+      return {
+        ...prev,
+        lifeMissions: prev.lifeMissions.filter((m) => m.id !== missionId),
+      };
+    });
+  }, []);
+
+  const toggleLifeSubMission = useCallback(
+    (missionId: string, subMissionId: string) => {
+      setRawState((prev) => {
+        if (prev.soundEnabled) playRadarBlipSound();
+        return {
+          ...prev,
+          lifeMissions: prev.lifeMissions.map((m) => {
+            if (m.id !== missionId) return m;
+            return {
+              ...m,
+              subMissions: m.subMissions.map((sub) =>
+                sub.id === subMissionId
+                  ? { ...sub, completed: !sub.completed }
+                  : sub
+              ),
+            };
+          }),
+        };
+      });
+    },
+    []
+  );
+
+  const addLifeSubMission = useCallback(
+    (
+      missionId: string,
+      title: string,
+      quantity?: string,
+      categoryTag?: string
+    ) => {
+      const cleanTitle = title.trim();
+      if (!cleanTitle) return;
+
+      const newSub: LifeSubMission = {
+        id: createUid('sub'),
+        title: cleanTitle,
+        completed: false,
+        quantity: quantity?.trim() || undefined,
+        categoryTag: categoryTag?.trim() || undefined,
+      };
+
+      setRawState((prev) => {
+        if (prev.soundEnabled) playRadarBlipSound();
+        return {
+          ...prev,
+          lifeMissions: prev.lifeMissions.map((m) =>
+            m.id === missionId
+              ? { ...m, subMissions: [...m.subMissions, newSub] }
+              : m
+          ),
+        };
+      });
+    },
+    []
+  );
+
+  const removeLifeSubMission = useCallback(
+    (missionId: string, subMissionId: string) => {
+      setRawState((prev) => ({
+        ...prev,
+        lifeMissions: prev.lifeMissions.map((m) =>
+          m.id === missionId
+            ? {
+                ...m,
+                subMissions: m.subMissions.filter((s) => s.id !== subMissionId),
+              }
+            : m
+        ),
+      }));
+    },
+    []
+  );
+
+  const completeLifeMission = useCallback(
+    (missionId: string) => {
+      const target = rawState.lifeMissions.find((m) => m.id === missionId);
+      if (!target || target.status === 'completed') return;
+
+      const currentNow = Date.now();
+      const earnedRespect = target.rewardRespect;
+      const earnedCash = target.rewardCash;
+      const healthBonus = target.rewardHealth;
+
+      const newRespectXp = rawState.respectXp + earnedRespect;
+      const levelResult = applyLevelProgress(
+        rawState.level,
+        newRespectXp,
+        rawState.nextLevelXp,
+        rawState.stats.maxHp
+      );
+
+      const nextStats: CharacterStatsBars = {
+        ...rawState.stats,
+        healthLevel: clampStat(
+          rawState.stats.healthLevel + Math.ceil(healthBonus / 2)
+        ),
+        maxHp: levelResult.maxHp,
+        currentHp: levelResult.leveledUp
+          ? levelResult.maxHp
+          : Math.min(levelResult.maxHp, rawState.stats.currentHp + healthBonus),
+        discipline: clampStat(rawState.stats.discipline + 2),
+      };
+
+      const todayKey = getDateKey(currentNow);
+      const yesterdayKey = getYesterdayDateKey(currentNow);
+      let nextStreak = rawState.streakDays;
+      if (rawState.lastWorkoutDate !== todayKey) {
+        nextStreak =
+          rawState.lastWorkoutDate === yesterdayKey ? rawState.streakDays + 1 : 1;
+      }
+
+      const todayCount =
+        rawState.history.filter((h) => getDateKey(h.completedAt) === todayKey)
+          .length + 1;
+      const nextHeatStars = Math.min(
+        6,
+        Math.max(1, 1 + Math.floor(nextStreak / 2) + (todayCount >= 2 ? 1 : 0))
+      );
+
+      const nextLifeMissions: LifeMission[] = rawState.lifeMissions.map((m) =>
+        m.id === missionId
+          ? {
+              ...m,
+              status: 'completed',
+              completedAt: currentNow,
+              timesCompleted: m.timesCompleted + 1,
+              subMissions: m.subMissions.map((sub) => ({
+                ...sub,
+                completed: true,
+              })),
+            }
+          : m
+      );
+
+      const logEntry: WorkoutLogEntry = {
+        id: createUid('log'),
+        missionId: target.id,
+        missionTitle: target.title,
+        completedAt: currentNow,
+        totalSets: Math.max(1, target.subMissions.length),
+        totalRepsOrSec: Math.max(1, target.subMissions.length),
+        earnedRespect,
+        earnedCash,
+      };
+
+      const luciaQuote = target.isBigMission ? pickLuciaQuote() : undefined;
+      const notifItem: PhoneNotification = luciaQuote
+        ? {
+            id: createUid('notif'),
+            contactId: 'doc_elena',
+            title: 'Люсии это понравится',
+            message: luciaQuote,
+            timestamp: currentNow,
+            read: false,
+            category: 'lucia_praise',
+          }
+        : {
+            id: createUid('notif'),
+            contactId: 'coach_dre',
+            title: `Миссия выполнена: ${target.title}`,
+            message:
+              target.jokeQuote ||
+              `Отличная работа! Зачислено +${earnedRespect} XP и +$${earnedCash}.`,
+            timestamp: currentNow,
+            read: false,
+            category: 'mission_passed',
+          };
+
+      if (rawState.soundEnabled) {
+        if (levelResult.leveledUp) {
+          playLevelUpSound();
+        } else {
+          playMissionPassedSound();
+        }
+      }
+
+      if (luciaQuote) {
+        sendBrowserPush(
+          'Люсии это понравится',
+          luciaQuote,
+          rawState.browserPushEnabled
+        );
+      }
+
+      setRawState((prev) => ({
+        ...prev,
+        level: levelResult.level,
+        rankTitle: getRankTitle(levelResult.level),
+        respectXp: newRespectXp,
+        nextLevelXp: levelResult.nextLevelXp,
+        cash: prev.cash + earnedCash,
+        streakDays: nextStreak,
+        heatStars: nextHeatStars,
+        lastWorkoutDate: todayKey,
+        stats: nextStats,
+        lifeMissions: nextLifeMissions,
+        notifications: [notifItem, ...prev.notifications].slice(0, 40),
+        history: [logEntry, ...prev.history].slice(0, 100),
+      }));
+
+      setActiveToast(notifItem);
+
+      setMissionPassedSummary({
+        missionId: target.id,
+        missionTitle: target.title,
+        earnedRespect,
+        earnedCash,
+        healthBonus,
+        leveledUp: levelResult.leveledUp,
+        newLevel: levelResult.level,
+        statBoosts: {
+          healthLevel: Math.ceil(healthBonus / 2),
+          discipline: 2,
+        },
+        unlockedTitles: levelResult.unlockedTitles,
+        recoveryNote:
+          target.jokeQuote ||
+          'Порядок на базе и в делах укрепляет здоровье и боевой настрой.',
+        luciaQuote,
+        isBigMission: target.isBigMission,
+      });
+    },
+    [rawState]
+  );
+
+  const reopenLifeMission = useCallback((missionId: string) => {
+    setRawState((prev) => {
+      if (prev.soundEnabled) playRadarBlipSound();
+      return {
+        ...prev,
+        lifeMissions: prev.lifeMissions.map((m) =>
+          m.id === missionId
+            ? {
+                ...m,
+                status: 'active',
+                completedAt: undefined,
+                subMissions: m.subMissions.map((sub) => ({
+                  ...sub,
+                  completed: false,
+                })),
+              }
+            : m
+        ),
+      };
+    });
+  }, []);
+
+  const setLifeMissionMapPin = useCallback(
+    (missionId: string, pin: MissionMapPin | undefined) => {
+      setRawState((prev) => ({
+        ...prev,
+        lifeMissions: prev.lifeMissions.map((m) =>
+          m.id === missionId ? { ...m, mapPin: pin } : m
+        ),
+      }));
+    },
+    []
+  );
+
+  const setMapMode = useCallback((mode: 'real' | 'solis') => {
+    setRawState((prev) => ({
+      ...prev,
+      mapMode: mode,
+    }));
+  }, []);
+
+  const setUserLocation = useCallback(
+    (coords: { lat: number; lng: number } | null) => {
+      setRawState((prev) => ({
+        ...prev,
+        userLocation: coords,
+      }));
+    },
+    []
+  );
+
+  const updateFitnessMissionTasks = useCallback(
+    (missionId: string, tasks: MissionExerciseTask[]) => {
+      setRawState((prev) => ({
+        ...prev,
+        missions: prev.missions.map((m) =>
+          m.id === missionId ? { ...m, tasks } : m
+        ),
+      }));
+    },
+    []
+  );
 
   const value = useMemo<GameContextValue>(
     () => ({
@@ -1467,6 +2011,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       exportSaveJson,
       importSaveJson,
       resetProgress,
+      createMissionGroup,
+      deleteMissionGroup,
+      createLifeMission,
+      addLifeMissionFromTemplate,
+      updateLifeMission,
+      deleteLifeMission,
+      toggleLifeSubMission,
+      addLifeSubMission,
+      removeLifeSubMission,
+      completeLifeMission,
+      reopenLifeMission,
+      setLifeMissionMapPin,
+      setMapMode,
+      setUserLocation,
+      updateFitnessMissionTasks,
     }),
     [
       state,
@@ -1498,6 +2057,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       exportSaveJson,
       importSaveJson,
       resetProgress,
+      createMissionGroup,
+      deleteMissionGroup,
+      createLifeMission,
+      addLifeMissionFromTemplate,
+      updateLifeMission,
+      deleteLifeMission,
+      toggleLifeSubMission,
+      addLifeSubMission,
+      removeLifeSubMission,
+      completeLifeMission,
+      reopenLifeMission,
+      setLifeMissionMapPin,
+      setMapMode,
+      setUserLocation,
+      updateFitnessMissionTasks,
     ]
   );
 

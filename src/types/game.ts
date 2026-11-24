@@ -48,6 +48,8 @@ export interface Exercise {
   xpPerSet: number;
   cashPerSet: number;
   healthBonus: number;
+  supportsWeight?: boolean;
+  defaultWeightKg?: number;
 }
 
 export interface MissionExerciseTask {
@@ -55,6 +57,7 @@ export interface MissionExerciseTask {
   sets: number;
   targetPerSet: number;
   completedSets: number[];
+  weightKg?: number;
 }
 
 export interface Mission {
@@ -144,7 +147,108 @@ export interface PhoneNotification {
   timestamp: number;
   read: boolean;
   actionMissionId?: string;
-  category: 'recovery_ready' | 'grease_reminder' | 'mission_passed' | 'streak_alert' | 'boss_unlocked';
+  category:
+    | 'recovery_ready'
+    | 'grease_reminder'
+    | 'mission_passed'
+    | 'streak_alert'
+    | 'boss_unlocked'
+    | 'lucia_praise'
+    | 'street_joke';
+}
+
+// ==========================================
+// LIFE IS GAME 2.0: Universal Mission System
+// ==========================================
+
+export type DefaultMissionGroupId =
+  | 'fitness'
+  | 'shopping'
+  | 'home_repair'
+  | 'home_life'
+  | 'work_hustle'
+  | 'learning'
+  | 'social'
+  | 'health_routine'
+  | 'finance'
+  | 'street_events';
+
+export type MissionGroupId = DefaultMissionGroupId | string;
+
+export interface MissionGroup {
+  id: MissionGroupId;
+  name: string;
+  description: string;
+  icon: string; // lucide icon name or emoji
+  color: string; // hex accent color
+  mapMarkerCode: string; // 1-2 char GTA-style map icon code (e.g. 'F', '$', 'H', 'R', 'W', '?')
+  isCustom?: boolean;
+  isSystem?: boolean;
+}
+
+export interface LifeSubMission {
+  id: string;
+  title: string;
+  completed: boolean;
+  quantity?: string;
+  categoryTag?: string;
+  note?: string;
+}
+
+export interface MissionMapPin {
+  placeName: string;
+  districtLabel?: string;
+  lat?: number;
+  lng?: number;
+  virtualX: number; // 0..100 % on Solis Coast fictional map
+  virtualY: number; // 0..100 % on Solis Coast fictional map
+  markerCode?: string;
+}
+
+export type LifeMissionKind = 'checklist' | 'shopping' | 'home_repair' | 'routine' | 'custom';
+
+export interface LifeMission {
+  id: string;
+  groupId: MissionGroupId;
+  title: string;
+  subtitle: string;
+  kind: LifeMissionKind;
+  isBigMission: boolean; // Triggers "Люсии это понравится" celebration on completion
+  isCustom?: boolean;
+  isFromTemplateId?: string;
+  jokeQuote?: string; // GTA-inspired legally safe witty line
+  subMissions: LifeSubMission[];
+  mapPin?: MissionMapPin;
+  rewardRespect: number;
+  rewardCash: number;
+  rewardHealth: number;
+  status: 'active' | 'completed';
+  createdAt: number;
+  completedAt?: number;
+  timesCompleted: number;
+  repeatable?: boolean;
+}
+
+export interface MissionTemplate {
+  id: string;
+  groupId: MissionGroupId;
+  title: string;
+  subtitle: string;
+  kind: LifeMissionKind;
+  isBigMission: boolean;
+  jokeQuote: string;
+  badgeLabel: string;
+  defaultMapPin?: MissionMapPin;
+  rewardRespect: number;
+  rewardCash: number;
+  rewardHealth: number;
+  repeatable?: boolean;
+  defaultSubMissions: Array<{
+    title: string;
+    quantity?: string;
+    categoryTag?: string;
+    note?: string;
+  }>;
 }
 
 export interface RewardItem {
@@ -185,6 +289,11 @@ export interface GameState {
   muscleRecovery: Record<MuscleGroup, MuscleRecoveryState>;
   missions: Mission[];
   activeMissionId: string | null;
+  // Life is Game 2.0 universal mission groups & life missions
+  missionGroups: MissionGroup[];
+  lifeMissions: LifeMission[];
+  mapMode: 'real' | 'solis';
+  userLocation: { lat: number; lng: number } | null;
   nextGreaseTimestamp: number | null;
   notifications: PhoneNotification[];
   rewards: RewardItem[];
@@ -207,6 +316,8 @@ export interface MissionPassedSummary {
   unlockedTitles: string[];
   recoveryNote: string;
   progressionNote?: string;
+  luciaQuote?: string;
+  isBigMission?: boolean;
   suggestedNextMissionId?: string;
   suggestedNextMissionTitle?: string;
 }
@@ -264,4 +375,36 @@ export interface GameContextValue {
   exportSaveJson: () => string;
   importSaveJson: (rawJson: string) => boolean;
   resetProgress: () => void;
+  // Life is Game 2.0 actions
+  createMissionGroup: (input: {
+    name: string;
+    description: string;
+    icon: string;
+    color: string;
+    mapMarkerCode: string;
+  }) => MissionGroup;
+  deleteMissionGroup: (groupId: string) => void;
+  createLifeMission: (
+    input: Omit<LifeMission, 'id' | 'status' | 'createdAt' | 'timesCompleted'>
+  ) => LifeMission;
+  addLifeMissionFromTemplate: (
+    templateId: string,
+    overrides?: Partial<LifeMission>
+  ) => LifeMission | null;
+  updateLifeMission: (missionId: string, patch: Partial<LifeMission>) => void;
+  deleteLifeMission: (missionId: string) => void;
+  toggleLifeSubMission: (missionId: string, subMissionId: string) => void;
+  addLifeSubMission: (
+    missionId: string,
+    title: string,
+    quantity?: string,
+    categoryTag?: string
+  ) => void;
+  removeLifeSubMission: (missionId: string, subMissionId: string) => void;
+  completeLifeMission: (missionId: string) => void;
+  reopenLifeMission: (missionId: string) => void;
+  setLifeMissionMapPin: (missionId: string, pin: MissionMapPin | undefined) => void;
+  setMapMode: (mode: 'real' | 'solis') => void;
+  setUserLocation: (coords: { lat: number; lng: number } | null) => void;
+  updateFitnessMissionTasks: (missionId: string, tasks: MissionExerciseTask[]) => void;
 }
