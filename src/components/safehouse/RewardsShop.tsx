@@ -105,11 +105,6 @@ export const RewardsShop: React.FC = () => {
     e.target.value = '';
   };
 
-  const xpPercent = Math.min(
-    100,
-    Math.round((state.respectXp / Math.max(1, state.nextLevelXp)) * 100)
-  );
-
   const syncBadge = (() => {
     if (!user) {
       return {
@@ -153,7 +148,7 @@ export const RewardsShop: React.FC = () => {
             Профиль
           </h1>
           <p className="mt-1 text-[13px] text-[#8E9098]">
-            Прогресс, история тренировок и настройки
+            Аккаунт, план тренировок и история
           </p>
         </div>
 
@@ -276,8 +271,8 @@ export const RewardsShop: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-[20px] font-semibold text-white">{state.playerName}</div>
-                <div className="text-[13px] text-[#8E9098]">
-                  Уровень {state.level} · {state.rankTitle}
+                <div className="text-[13px] text-[#8E9098] tabular-nums">
+                  Серия {state.streakDays} дн.
                 </div>
               </div>
               <div className="text-right">
@@ -285,21 +280,6 @@ export const RewardsShop: React.FC = () => {
                   {state.history.length}
                 </div>
                 <div className="text-[11px] text-[#8E9098] mt-1">тренировок</div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[12px] text-[#8E9098] tabular-nums">
-                <span>Опыт до уровня {state.level + 1}</span>
-                <span>
-                  {state.respectXp} / {state.nextLevelXp} XP
-                </span>
-              </div>
-              <div className="h-[5px] w-full rounded-full bg-white/[0.10] overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[#E5A3BD] transition-all duration-500"
-                  style={{ width: `${Math.max(4, xpPercent)}%` }}
-                />
               </div>
             </div>
 
@@ -392,9 +372,11 @@ export const RewardsShop: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <span className="shrink-0 text-[13px] font-semibold text-[#8AE5C3] tabular-nums">
-                    +{entry.earnedRespect} XP
-                  </span>
+                  {entry.totalRepsOrSec > 0 && (
+                    <span className="shrink-0 text-[13px] font-medium text-[#8E9098] tabular-nums">
+                      {entry.totalRepsOrSec} повт.
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

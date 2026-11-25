@@ -401,23 +401,18 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           </button>
         </div>
 
-        {/* Map Pin & Rewards Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium tabular-nums">
-            <span className="px-2.5 py-1 rounded-full bg-[#E5A3BD]/12 text-[#E5A3BD]">
-              +{mission.rewardRespect} XP
-            </span>
-            <span className="px-2.5 py-1 rounded-full bg-[#7ED484]/12 text-[#7ED484]">
-              +${mission.rewardCash}
-            </span>
-            {mission.rewardHealth > 0 && (
-              <span className="px-2.5 py-1 rounded-full bg-[#8AE5C3]/12 text-[#8AE5C3]">
-                +{mission.rewardHealth} HP
-              </span>
-            )}
-          </div>
+        {/* Map Pin & Health Bonus Row */}
+        {(mission.rewardHealth > 0 || mission.mapPin) && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium tabular-nums">
+              {mission.rewardHealth > 0 && (
+                <span className="px-2.5 py-1 rounded-full bg-[#8AE5C3]/12 text-[#8AE5C3]">
+                  +{mission.rewardHealth} HP
+                </span>
+              )}
+            </div>
 
-          {mission.mapPin && (
+            {mission.mapPin && (
             <button
               type="button"
               onClick={() => onFocusOnMap?.(mission.id)}
@@ -428,7 +423,8 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
               <span className="text-white/60">· На карте</span>
             </button>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Sub-missions List */}
         {mission.subMissions.length > 0 && (
@@ -648,7 +644,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           className="shrink-0 h-10 px-3.5 rounded-full apple-card-elevated hover:bg-[#32343B] text-[13px] font-semibold text-[#8AE5C3] inline-flex items-center gap-1.5 active:scale-95 transition"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Группа</span>
+          <span>Миссия</span>
         </button>
       </div>
 
@@ -686,7 +682,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
               className="shrink-0 h-8 px-2.5 rounded-full bg-white/[0.05] hover:bg-[#FF6B8B]/15 text-[12px] text-[#8E9098] hover:text-[#FF6B8B] inline-flex items-center gap-1 transition"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Удалить группу</span>
+              <span className="hidden sm:inline">Удалить миссию</span>
             </button>
           )}
         </div>

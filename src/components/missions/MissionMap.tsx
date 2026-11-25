@@ -49,7 +49,7 @@ export const MissionMap: React.FC = () => {
       {/* Чистая шапка */}
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className="text-[12px] font-medium text-[#E5A3BD]">Группа миссий: Спорт</span>
+          <span className="text-[12px] font-medium text-[#E5A3BD]">Миссия: Спорт</span>
           <h1 className="mt-0.5 text-[28px] md:text-[32px] font-semibold tracking-[-0.025em] text-white leading-tight">
             План на неделю
           </h1>
@@ -221,9 +221,7 @@ export const MissionMap: React.FC = () => {
                         {m ? m.title : day.title}
                       </div>
                       <div className="text-[12px] text-[#8E9098] truncate">
-                        {m
-                          ? `${m.tasks.length} упр. · +${m.rewards.respectXp} XP`
-                          : 'Отдых и восстановление'}
+                        {m ? `${m.tasks.length} упр.` : 'Отдых и восстановление'}
                       </div>
                     </div>
                   </div>

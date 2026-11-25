@@ -1105,8 +1105,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         contactId: targetMission.giverContactId,
         title: `Тренировка выполнена: ${targetMission.title}`,
         message: progressionNote
-          ? `+${earnedRespect} XP. ${progressionNote}`
-          : `Отличная работа! Зачислено +${earnedRespect} XP.`,
+          ? progressionNote
+          : 'Отличная работа! Тренировка записана в историю.',
         timestamp: currentNow,
         read: false,
         actionMissionId: targetMission.rewards.unlocksMissionIds?.[0],
@@ -1231,7 +1231,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: createUid('notif'),
         contactId: 'coach_dre',
         title: `Подход засчитан (+${cleanReps} повт.)`,
-        message: `Залетел на турник как профи! +${earnedRespect} Respect и +$${earnedCash}. Следующий пинг через ${rawState.activePlan.greaseIntervalMinutes} мин.`,
+        message: `Подход на турнике записан. Следующее напоминание через ${rawState.activePlan.greaseIntervalMinutes} мин.`,
         timestamp: currentNow,
         read: false,
         actionMissionId: greaseMission?.id,
@@ -1334,7 +1334,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: createUid('notif'),
         contactId: isMobility ? 'doc_elena' : 'coach_dre',
         title: `Свободная тренировка: ${ex.name}`,
-        message: `${safeSets}×${safeTarget} засчитаны! +${earnedRespect} Respect, +$${earnedCash}.`,
+        message: `${safeSets}×${safeTarget} засчитаны и добавлены в историю.`,
         timestamp: currentNow,
         read: false,
         category: 'mission_passed',

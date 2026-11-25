@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
-  Smartphone,
+  LayoutGrid,
   Crosshair,
   MapPin,
   Activity,
   MessageCircle,
-  Trophy,
+  Settings,
   SlidersHorizontal,
   ChevronLeft,
 } from 'lucide-react';
@@ -37,23 +37,23 @@ const NAV_TABS: {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { id: 'home', label: 'Телефон', icon: Smartphone },
+  { id: 'home', label: 'Главная', icon: LayoutGrid },
   { id: 'fitness', label: 'Фитнес', icon: Activity },
   { id: 'messages', label: 'Сообщения', icon: MessageCircle },
   { id: 'map', label: 'Карта', icon: MapPin },
   { id: 'missions', label: 'Миссии', icon: Crosshair },
-  { id: 'profile', label: 'Награды', icon: Trophy },
+  { id: 'profile', label: 'Профиль', icon: Settings },
 ];
 
-const MOBILE_DOCK_TABS = NAV_TABS.slice(0, 5);
+const MOBILE_DOCK_TABS = NAV_TABS.filter((t) => t.id !== 'home');
 
 const APP_TITLES: Record<AppTab, string> = {
-  home: 'Телефон',
+  home: 'Главная',
   fitness: 'Фитнес',
   messages: 'Сообщения',
   map: 'Карта',
   missions: 'Миссии',
-  profile: 'Награды',
+  profile: 'Профиль',
 };
 
 const AdaptiveAppShell: React.FC = () => {
@@ -93,10 +93,6 @@ const AdaptiveAppShell: React.FC = () => {
         setFitnessSubTab('overview');
         setActiveTab('fitness');
         break;
-      case 'fitness_plan':
-        setFitnessSubTab('plan');
-        setActiveTab('fitness');
-        break;
       case 'messages':
         handleSelectTab('messages');
         break;
@@ -108,12 +104,6 @@ const AdaptiveAppShell: React.FC = () => {
         break;
       case 'profile':
         setActiveTab('profile');
-        break;
-      case 'onboarding':
-        setIsOnboardingOpen(true);
-        break;
-      case 'auth':
-        setIsAuthModalOpen(true);
         break;
     }
   };
@@ -133,7 +123,6 @@ const AdaptiveAppShell: React.FC = () => {
   };
 
   const isInActiveMission = Boolean(state.activeMissionId);
-  const isHomeScreen = activeTab === 'home' && !isInActiveMission;
   const hpPercent = Math.round(
     (state.stats.currentHp / Math.max(1, state.stats.maxHp)) * 100
   );
@@ -145,23 +134,6 @@ const AdaptiveAppShell: React.FC = () => {
       : hpPercent >= 45
       ? 'text-[#FFB36B]'
       : 'text-[#FF6B9D]';
-
-  if (isHomeScreen) {
-    return (
-      <>
-        <PhoneHomeScreen onLaunchApp={handleLaunchApp} />
-        <MissionBuilderModal
-          isOpen={isQuickBuilderOpen}
-          initialMapPin={pendingMapPin}
-          onClose={handleCloseQuickBuilder}
-        />
-        <NotificationToast onOpenMessages={() => handleSelectTab('messages')} />
-        <PlanOnboarding />
-        <MissionPassedModal />
-        <AuthModal />
-      </>
-    );
-  }
 
   return (
     <div className="min-h-screen w-full bg-[#0E0F11] text-white flex flex-col lg:flex-row">
@@ -185,15 +157,12 @@ const AdaptiveAppShell: React.FC = () => {
                   <div className="text-[14px] font-semibold tracking-[-0.01em] text-white truncate">
                     {state.playerName}
                   </div>
-                  <span className="text-[12px] font-bold text-[#FFB36B] tabular-nums shrink-0">
-                    ${state.cash.toLocaleString('ru-RU')}
+                  <span className="text-[12px] font-medium text-[#8E9098] tabular-nums shrink-0">
+                    {state.streakDays} дн.
                   </span>
                 </div>
                 <div className="mt-1 flex items-center justify-between text-[12px]">
                   <span className={`font-medium ${healthColor}`}>{healthLabel}</span>
-                  <span className="text-[#8E9098] tabular-nums">
-                    Ур. {state.level} · {state.respectXp} XP
-                  </span>
                 </div>
               </div>
 
@@ -268,27 +237,27 @@ const AdaptiveAppShell: React.FC = () => {
         </aside>
       )}
 
-      {/* MOBILE STICKY APP HEADER (< 768px) with Back to Phone Home */}
+      {/* MOBILE STICKY APP HEADER (< 768px) */}
       {!isInActiveMission && (
         <header className="md:hidden sticky top-0 z-30 px-4 pt-3 pb-2.5 flex items-center justify-between gap-2 bg-[#0E0F11]/90 backdrop-blur-xl border-b border-white/[0.06]">
-          <button
-            type="button"
-            onClick={() => handleSelectTab('home')}
-            className="h-8 pl-2 pr-3 rounded-full apple-card hover:bg-[#25262B] text-[13px] font-semibold text-white inline-flex items-center gap-1 active:scale-95 transition"
-          >
-            <ChevronLeft className="w-4 h-4 text-[#FF85AE]" />
-            <span>Домой</span>
-          </button>
+          {activeTab !== 'home' ? (
+            <button
+              type="button"
+              onClick={() => handleSelectTab('home')}
+              className="h-8 pl-2 pr-3 rounded-full apple-card hover:bg-[#25262B] text-[13px] font-semibold text-white inline-flex items-center gap-1 active:scale-95 transition"
+            >
+              <ChevronLeft className="w-4 h-4 text-[#FF85AE]" />
+              <span>Главная</span>
+            </button>
+          ) : (
+            <SolisLogo variant="compact" />
+          )}
 
           <span className="text-[14px] font-semibold tracking-[-0.01em] text-white truncate">
             {APP_TITLES[activeTab]}
           </span>
 
-          <div className="flex items-center gap-1.5">
-            <span className="px-2.5 py-1 rounded-full apple-card text-[11px] font-semibold text-[#FFB36B] tabular-nums">
-              ${state.cash.toLocaleString('ru-RU')}
-            </span>
-          </div>
+          <div className="w-8 shrink-0" aria-hidden="true" />
         </header>
       )}
 
@@ -298,10 +267,14 @@ const AdaptiveAppShell: React.FC = () => {
           <button
             type="button"
             onClick={() => handleSelectTab('home')}
-            className="h-9 pl-2.5 pr-3.5 rounded-full apple-card hover:bg-[#25262B] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 transition"
+            className={`h-9 px-3.5 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5 transition ${
+              activeTab === 'home'
+                ? 'apple-pill-active text-white'
+                : 'apple-card hover:bg-[#25262B] text-white/90'
+            }`}
           >
-            <ChevronLeft className="w-4 h-4 text-[#FF85AE]" />
-            <span>Телефон</span>
+            <LayoutGrid className="w-4 h-4 text-[#FF85AE]" />
+            <span>Главная</span>
           </button>
 
           <nav
@@ -357,6 +330,8 @@ const AdaptiveAppShell: React.FC = () => {
             <ActiveWorkout />
           ) : (
             <>
+              {activeTab === 'home' && <PhoneHomeScreen onLaunchApp={handleLaunchApp} />}
+
               {activeTab === 'missions' && (
                 <LifeMissionsHub
                   initialSelectedMissionId={focusedMissionId}

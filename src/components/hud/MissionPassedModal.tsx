@@ -20,9 +20,9 @@ export const MissionPassedModal: React.FC = () => {
     ([, val]) => typeof val === 'number' && val > 0
   ) as [keyof CharacterStatsBars, number][];
 
-  const headerEyebrow = missionPassedSummary.leveledUp
-    ? `Новый уровень · Ур. ${missionPassedSummary.newLevel}`
-    : 'Тренировка выполнена';
+  const headerEyebrow = missionPassedSummary.isBigMission
+    ? 'Большая миссия выполнена'
+    : 'Выполнено';
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0B0C10]/90 backdrop-blur-3xl flex items-center justify-center md:p-6 overflow-y-auto animate-modal-in">
@@ -53,29 +53,15 @@ export const MissionPassedModal: React.FC = () => {
             </h2>
           </div>
 
-          {/* 3-Column Reward Summary: +XP / +$ / +HP */}
-          <div className="rounded-[24px] apple-card grid grid-cols-3 divide-x divide-white/[0.07] overflow-hidden">
-            <div className="py-4 px-2.5">
-              <div className="text-[20px] font-bold tracking-[-0.02em] text-[#5CE1E6] tabular-nums">
-                +{missionPassedSummary.earnedRespect}
-              </div>
-              <div className="mt-1 text-[11px] font-medium text-[#98989F]">Опыт XP</div>
+          {/* Health & Physical Stat Boosts */}
+          {missionPassedSummary.healthBonus > 0 && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full apple-card">
+              <span className="text-[13px] font-medium text-[#98989F]">Здоровье</span>
+              <span className="text-[15px] font-bold text-[#7ED484] tabular-nums">
+                +{missionPassedSummary.healthBonus} HP
+              </span>
             </div>
-
-            <div className="py-4 px-2.5">
-              <div className="text-[20px] font-bold tracking-[-0.02em] text-[#FFB36B] tabular-nums">
-                +${missionPassedSummary.earnedCash}
-              </div>
-              <div className="mt-1 text-[11px] font-medium text-[#98989F]">Наличные</div>
-            </div>
-
-            <div className="py-4 px-2.5">
-              <div className="text-[20px] font-bold tracking-[-0.02em] text-[#7ED484] tabular-nums">
-                +{missionPassedSummary.healthBonus}
-              </div>
-              <div className="mt-1 text-[11px] font-medium text-[#98989F]">Здоровье</div>
-            </div>
-          </div>
+          )}
 
           {statEntries.length > 0 && (
             <div className="flex flex-wrap items-center justify-center gap-2">

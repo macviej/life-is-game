@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import L from 'leaflet';
+import {
+  GTA_MAP_STYLE,
+  loadMapLibre,
+  MapLibreGL,
+  MapLibreMapInstance,
+  MapLibreMarkerInstance,
+} from './gtaMapStyle';
 import 'leaflet/dist/leaflet.css';
 import {
   AlertTriangle,
@@ -148,9 +154,11 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
   const [toastText, setToastText] = useState<string | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const leafletMapRef = useRef<L.Map | null>(null);
-  const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const pendingMarkerRef = useRef<L.Marker | null>(null);
+  const mapRef = useRef<MapLibreMapInstance | null>(null);
+  const mapLibreRef = useRef<MapLibreGL | null>(null);
+  const markersRef = useRef<MapLibreMarkerInstance[]>([]);
+  const [mapReady, setMapReady] = useState(false);
+  const pendingMarkerRef = useRef<MapLibreMarkerInstance | null>(null);
   const autoLocatedRef = useRef(false);
 
   const activeLifeMissions = useMemo(
@@ -240,7 +248,7 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
           setUserLocation(coords);
           setGeoBanner(null);
           setIsLocating(false);
-          leafletMapRef.current?.flyTo([coords.lat, coords.lng], 14, { duration: 0.9 });
+          mapRef.current?.flyTo({ center: [coords.lng, coords.lat], zoom: 14, duration: 900 });
         },
         () => {
           setIsLocating(false);
@@ -257,43 +265,46 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
   // Initialize Leaflet Real Dark Map
   useEffect(() => {
     const container = mapContainerRef.current;
-    if (!container || leafletMapRef.current) return;
+    if (!container || mapRef.current) return;
+    let cancelled = false;
 
     const initialCenter = userLocation ?? DEFAULT_CENTER;
-    const map = L.map(container, {
-      center: [initialCenter.lat, initialCenter.lng],
-      zoom: userLocation ? 14 : 12,
-      zoomControl: false,
-      attributionControl: true,
-    });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 19,
-    }).addTo(map);
+    loadMapLibre()
+      .then((maplibregl) => {
+        if (cancelled || !mapContainerRef.current) return;
+        mapLibreRef.current = maplibregl;
 
-    markersLayerRef.current = L.layerGroup().addTo(map);
-    leafletMapRef.current = map;
+        const map = new maplibregl.Map({
+          container: mapContainerRef.current,
+          style: GTA_MAP_STYLE,
+          center: [initialCenter.lng, initialCenter.lat],
+          zoom: userLocation ? 14 : 12,
+          attributionControl: true,
+        });
 
-    map.on('click', (evt: L.LeafletMouseEvent) => {
-      const { lat, lng } = evt.latlng;
-      setSelectedMissionId(null);
-      setShowAttachPicker(false);
-      setPendingPlaceName('');
-      setPendingSpot({ lat, lng });
-    });
+        map.on('click', (evt) => {
+          const { lat, lng } = evt.lngLat;
+          setSelectedMissionId(null);
+          setShowAttachPicker(false);
+          setPendingPlaceName('');
+          setPendingSpot({ lat, lng });
+        });
 
-    const resizeTimer = window.setTimeout(() => {
-      map.invalidateSize();
-    }, 150);
+        mapRef.current = map;
+        setMapReady(true);
+      })
+      .catch((err) => {
+        console.error('MapLibre load error:', err);
+      });
 
     return () => {
-      window.clearTimeout(resizeTimer);
-      map.remove();
-      leafletMapRef.current = null;
-      markersLayerRef.current = null;
+      cancelled = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
+      markersRef.current = [];
       pendingMarkerRef.current = null;
+      setMapReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -308,26 +319,26 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
 
   // Render Mission Markers & User GPS Dot
   useEffect(() => {
-    const layer = markersLayerRef.current;
-    if (!layer) return;
-    layer.clearLayers();
+    const map = mapRef.current;
+    const maplibregl = mapLibreRef.current;
+    if (!map || !maplibregl || !mapReady) return;
+
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
 
     if (userLocation) {
-      const userIcon = L.divIcon({
-        className: 'life-map-div-icon',
-        html: `
-          <div style="position:relative;width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
-            <span class="life-marker-pulse" style="position:absolute;inset:0;border-radius:9999px;background:rgba(50,173,230,0.45);"></span>
-            <span style="position:relative;width:12px;height:12px;border-radius:9999px;background:#32ADE6;border:2.5px solid #0E0F11;box-shadow:0 0 12px rgba(50,173,230,0.9);"></span>
-          </div>
-        `,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-      });
-      L.marker([userLocation.lat, userLocation.lng], {
-        icon: userIcon,
-        interactive: false,
-      }).addTo(layer);
+      const el = document.createElement('div');
+      el.style.pointerEvents = 'none';
+      el.innerHTML = `
+        <div style="position:relative;width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
+          <span class="life-marker-pulse" style="position:absolute;inset:0;border-radius:9999px;background:rgba(50,173,230,0.45);"></span>
+          <span style="position:relative;width:12px;height:12px;border-radius:9999px;background:#32ADE6;border:2.5px solid #0E0F11;box-shadow:0 0 12px rgba(50,173,230,0.9);"></span>
+        </div>
+      `;
+      const userMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([userLocation.lng, userLocation.lat])
+        .addTo(map);
+      markersRef.current.push(userMarker);
     }
 
     for (const item of filteredPins) {
@@ -336,36 +347,35 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
         ? `<span class="life-marker-pulse" style="position:absolute;inset:-5px;border-radius:14px;border:2px solid ${item.color};"></span>`
         : '';
 
-      const icon = L.divIcon({
-        className: 'life-map-div-icon',
-        html: `
-          <div style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
-            <div style="position:relative;width:36px;height:36px;border-radius:12px;background:#12141B;border:2px solid ${item.color};box-shadow:0 8px 20px rgba(0,0,0,0.65),0 0 14px ${item.color}55;display:flex;align-items:center;justify-content:center;color:${item.color};font-weight:800;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;transform:${isSelected ? 'scale(1.14)' : 'scale(1)'};transition:transform 0.15s ease;">
-              ${pulseHtml}
-              <span style="position:relative;z-index:2;">${escapeHtml(item.code)}</span>
-            </div>
-            <div style="margin-top:4px;padding:2px 7px;border-radius:9999px;background:rgba(14,15,17,0.86);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:10px;font-weight:600;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;">
-              ${escapeHtml(item.title)}
-            </div>
+      const el = document.createElement('div');
+      el.innerHTML = `
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+          <div style="position:relative;width:36px;height:36px;border-radius:12px;background:#12141B;border:2px solid ${item.color};box-shadow:0 8px 20px rgba(0,0,0,0.65),0 0 14px ${item.color}55;display:flex;align-items:center;justify-content:center;color:${item.color};font-weight:800;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;transform:${isSelected ? 'scale(1.14)' : 'scale(1)'};transition:transform 0.15s ease;">
+            ${pulseHtml}
+            <span style="position:relative;z-index:2;">${escapeHtml(item.code)}</span>
           </div>
-        `,
-        iconSize: [120, 58],
-        iconAnchor: [60, 20],
-      });
-
-      const marker = L.marker([item.lat, item.lng], { icon }).addTo(layer);
-      marker.on('click', (evt) => {
-        L.DomEvent.stopPropagation(evt);
+          <div style="margin-top:4px;padding:2px 7px;border-radius:9999px;background:rgba(14,15,17,0.86);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:10px;font-weight:600;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;">
+            ${escapeHtml(item.title)}
+          </div>
+        </div>
+      `;
+      el.addEventListener('click', (evt) => {
+        evt.stopPropagation();
         setPendingSpot(null);
         setSelectedMissionId(item.id);
-        leafletMapRef.current?.panTo([item.lat, item.lng], { animate: true });
+        mapRef.current?.flyTo({ center: [item.lng, item.lat], duration: 500 });
       });
+
+      const marker = new maplibregl.Marker({ element: el, anchor: 'top' })
+        .setLngLat([item.lng, item.lat])
+        .addTo(map);
+      markersRef.current.push(marker);
     }
-  }, [filteredPins, selectedMissionId, userLocation]);
+  }, [filteredPins, selectedMissionId, userLocation, mapReady]);
 
   // Render temporary Pending Pin when user clicks anywhere on map
   useEffect(() => {
-    const map = leafletMapRef.current;
+    const map = mapRef.current;
     if (!map) return;
 
     if (pendingMarkerRef.current) {
@@ -374,26 +384,24 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
     }
 
     if (!pendingSpot) return;
+    const maplibregl = mapLibreRef.current;
+    if (!maplibregl) return;
 
-    const pendingIcon = L.divIcon({
-      className: 'life-map-div-icon',
-      html: `
-        <div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
-          <span class="life-marker-pulse" style="position:absolute;inset:-4px;border-radius:9999px;border:2px solid #FF375F;"></span>
-          <div style="position:relative;width:32px;height:32px;border-radius:9999px;background:linear-gradient(135deg,#FF375F,#FF7A45);border:2px solid #fff;box-shadow:0 8px 22px rgba(255,55,95,0.55);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;line-height:1;">
-            +
-          </div>
+    const el = document.createElement('div');
+    el.style.pointerEvents = 'none';
+    el.innerHTML = `
+      <div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+        <span class="life-marker-pulse" style="position:absolute;inset:-4px;border-radius:9999px;border:2px solid #FF375F;"></span>
+        <div style="position:relative;width:32px;height:32px;border-radius:9999px;background:linear-gradient(135deg,#FF375F,#FF7A45);border:2px solid #fff;box-shadow:0 8px 22px rgba(255,55,95,0.55);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;line-height:1;">
+          +
         </div>
-      `,
-      iconSize: [36, 36],
-      iconAnchor: [18, 18],
-    });
+      </div>
+    `;
 
-    pendingMarkerRef.current = L.marker([pendingSpot.lat, pendingSpot.lng], {
-      icon: pendingIcon,
-      interactive: false,
-    }).addTo(map);
-  }, [pendingSpot]);
+    pendingMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+      .setLngLat([pendingSpot.lng, pendingSpot.lat])
+      .addTo(map);
+  }, [pendingSpot, mapReady]);
 
   const handleCreateMissionAtSpot = () => {
     if (!pendingSpot || !onOpenCreateMission) return;
@@ -435,17 +443,17 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
   };
 
   const handleZoomControl = (delta: number) => {
-    const map = leafletMapRef.current;
+    const map = mapRef.current;
     if (!map) return;
-    if (delta > 0) map.zoomIn();
-    else map.zoomOut();
+    if (delta > 0) map.zoomIn({ duration: 250 });
+    else map.zoomOut({ duration: 250 });
   };
 
   const handleResetView = () => {
-    const map = leafletMapRef.current;
+    const map = mapRef.current;
     if (!map) return;
     const center = userLocation ?? DEFAULT_CENTER;
-    map.flyTo([center.lat, center.lng], userLocation ? 14 : 12, { duration: 0.7 });
+    map.flyTo({ center: [center.lng, center.lat], zoom: userLocation ? 14 : 12, duration: 700 });
   };
 
   const selectedGroupMeta = selectedPin
@@ -785,14 +793,15 @@ export const SolisWorldMap: React.FC<SolisWorldMapProps> = ({
               </div>
             )}
 
-            {/* Rewards + Actions */}
-            <div className="flex items-center justify-between text-[12px] text-[#98989F] tabular-nums px-0.5">
-              <span>Награда:</span>
-              <span className="font-semibold text-[#30D158]">
-                +{selectedPin.mission.rewardRespect} XP ·{' '}
-                <span className="text-[#FFD60A]">+${selectedPin.mission.rewardCash}</span>
-              </span>
-            </div>
+            {/* Actions */}
+            {selectedPin.mission.rewardHealth > 0 && (
+              <div className="flex items-center justify-between text-[12px] text-[#98989F] tabular-nums px-0.5">
+                <span>Тонус:</span>
+                <span className="font-semibold text-[#30D158]">
+                  +{selectedPin.mission.rewardHealth} HP
+                </span>
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-2">
               <button

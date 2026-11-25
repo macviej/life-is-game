@@ -197,8 +197,6 @@ export const CharacterPhoneView: React.FC<CharacterPhoneViewProps> = ({ onOpenPl
           </h1>
           <div className="mt-0.5 flex items-center gap-2 text-[14px]">
             <span className={`font-medium ${healthColor}`}>{healthLabel}</span>
-            <span className="text-white/20">·</span>
-            <span className="text-[#8E9098] tabular-nums">Уровень {state.level}</span>
           </div>
         </div>
 
@@ -250,7 +248,7 @@ export const CharacterPhoneView: React.FC<CharacterPhoneViewProps> = ({ onOpenPl
                 </h2>
                 {todayMission && (
                   <div className="text-[13px] text-[#8E9098] tabular-nums">
-                    ~{estimateWorkoutMinutes(todayMission)} мин · +{todayMission.rewards.respectXp} XP · +
+                    ~{estimateWorkoutMinutes(todayMission)} мин · {todayMission.tasks.length} упр. · +
                     {todayMission.rewards.healthBonus} HP
                   </div>
                 )}
@@ -362,7 +360,7 @@ export const CharacterPhoneView: React.FC<CharacterPhoneViewProps> = ({ onOpenPl
                 <div>
                   <div className="text-[14px] font-semibold text-white">{tr.label}</div>
                   <div className="text-[12px] text-[#8E9098] tabular-nums">
-                    Уровень {tr.quarter}/4
+                    {tr.value} / 100
                   </div>
                 </div>
                 <SegmentedLevelRing
@@ -380,9 +378,6 @@ export const CharacterPhoneView: React.FC<CharacterPhoneViewProps> = ({ onOpenPl
         <section className="lg:col-span-5 space-y-3.5">
           <div className="flex items-center justify-between px-0.5">
             <h2 className="text-[14px] font-medium text-[#8E9098]">Восстановление мышц</h2>
-            <span className="text-[12px] text-[#7A7C84] tabular-nums">
-              {state.respectXp} / {state.nextLevelXp} XP
-            </span>
           </div>
 
           <div className="rounded-[18px] apple-card divide-y divide-white/[0.06] overflow-hidden">
