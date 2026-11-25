@@ -71,7 +71,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({ onOpenMess
           ) : (
             <div className="flex items-center justify-between gap-2">
               <span className="text-[13px] font-semibold tracking-[-0.01em] text-white truncate">
-                {isStreetJoke ? activeToast.title || 'Пульс Solis' : contact.name}
+                {isStreetJoke ? activeToast.title || 'Жизнь' : contact.name}
               </span>
               <span className="text-[11px] text-[#AEAEB2] shrink-0">сейчас</span>
             </div>

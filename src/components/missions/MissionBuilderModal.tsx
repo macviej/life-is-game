@@ -6,6 +6,7 @@ import {
   Heart,
   Layers,
   MapPin,
+  Navigation,
   Palette,
   Plus,
   ShoppingBag,
@@ -16,10 +17,17 @@ import {
 import { useGame } from '../../context/GameContext';
 import { LifeMissionKind, LifeSubMission, MissionMapPin } from '../../types/game';
 
+export interface InitialMapPinInput {
+  lat: number;
+  lng: number;
+  placeName?: string;
+}
+
 interface MissionBuilderModalProps {
   isOpen: boolean;
   defaultGroupId?: string;
   initialTab?: 'mission' | 'group';
+  initialMapPin?: InitialMapPinInput | null;
   onClose: () => void;
 }
 
@@ -99,9 +107,10 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
   isOpen,
   defaultGroupId,
   initialTab = 'mission',
+  initialMapPin = null,
   onClose,
 }) => {
-  const { state, createLifeMission, createMissionGroup } = useGame();
+  const { state, createLifeMission, createMissionGroup, setUserLocation } = useGame();
   const groups = state.missionGroups ?? [];
 
   const resolvedDefaultGroupId = useMemo(() => {
@@ -119,6 +128,8 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
   const [subtitle, setSubtitle] = useState('');
   const [kind, setKind] = useState<LifeMissionKind>(inferKindFromGroup(resolvedDefaultGroupId));
   const [placeName, setPlaceName] = useState('');
+  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLocatingPin, setIsLocatingPin] = useState(false);
   const [rewardTier, setRewardTier] = useState<RewardTier>('medium');
   const [subMissions, setSubMissions] = useState<LifeSubMission[]>([]);
 
@@ -139,7 +150,14 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
     setActiveTab(initialTab);
     setGroupId(resolvedDefaultGroupId);
     setKind(inferKindFromGroup(resolvedDefaultGroupId));
-  }, [isOpen, initialTab, resolvedDefaultGroupId]);
+    if (initialMapPin) {
+      setPinCoords({ lat: initialMapPin.lat, lng: initialMapPin.lng });
+      setPlaceName(initialMapPin.placeName ?? '');
+    } else {
+      setPinCoords(null);
+      setPlaceName('');
+    }
+  }, [isOpen, initialTab, resolvedDefaultGroupId, initialMapPin]);
 
   if (!isOpen) return null;
 
@@ -212,11 +230,35 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
     setTitle('');
     setSubtitle('');
     setPlaceName('');
+    setPinCoords(null);
     setRewardTier('medium');
     setSubMissions([]);
     setSubTitle('');
     setSubQty('');
     setSubTag('');
+  };
+
+  const handleUseCurrentGps = () => {
+    if (state.userLocation) {
+      setPinCoords(state.userLocation);
+      if (!placeName.trim()) setPlaceName('Моё местоположение');
+      return;
+    }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    setIsLocatingPin(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(coords);
+        setPinCoords(coords);
+        if (!placeName.trim()) setPlaceName('Моё местоположение');
+        setIsLocatingPin(false);
+      },
+      () => {
+        setIsLocatingPin(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
   };
 
   const resetGroupForm = () => {
@@ -230,16 +272,29 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
   const handleSubmitMission = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanTitle = title.trim();
-    if (!cleanTitle || subMissions.length === 0) return;
+    if (!cleanTitle) return;
+
+    const effectiveSubMissions: LifeSubMission[] =
+      subMissions.length > 0
+        ? subMissions
+        : [
+            {
+              id: `sub_main_${Date.now()}`,
+              title: cleanTitle,
+              completed: false,
+            },
+          ];
 
     const reward = REWARD_PRESETS[rewardTier];
     const cleanPlace = placeName.trim();
-    const mapPin: MissionMapPin | undefined = cleanPlace
+    const mapPin: MissionMapPin | undefined = pinCoords
       ? {
-          placeName: cleanPlace,
-          districtLabel: selectedGroup?.name ?? 'Солис-Коуст',
-          virtualX: 20 + Math.round(Math.random() * 60),
-          virtualY: 20 + Math.round(Math.random() * 60),
+          placeName: cleanPlace || 'Точка на карте',
+          districtLabel: selectedGroup?.name ?? 'Карта',
+          lat: pinCoords.lat,
+          lng: pinCoords.lng,
+          virtualX: 50,
+          virtualY: 50,
           markerCode: selectedGroup?.mapMarkerCode ?? '★',
         }
       : undefined;
@@ -247,11 +302,11 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
     createLifeMission({
       groupId,
       title: cleanTitle,
-      subtitle: subtitle.trim() || 'Список пунктов',
+      subtitle: subtitle.trim() || (cleanPlace ? cleanPlace : 'Личная миссия'),
       kind,
       isBigMission: false,
       isCustom: true,
-      subMissions,
+      subMissions: effectiveSubMissions,
       mapPin,
       rewardRespect: reward.respect,
       rewardCash: reward.cash,
@@ -293,7 +348,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
         <div className="shrink-0 px-5 pt-5 pb-4 border-b border-white/[0.08] flex items-start justify-between gap-3">
           <div>
             <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#E5A3BD]">
-              Конструктор Solis 2.0
+              Конструктор миссий
             </span>
             <h2 className="mt-1 text-[21px] font-bold tracking-[-0.02em] text-white">
               {activeTab === 'mission' ? 'Создать миссию' : 'Новая группа миссий'}
@@ -527,21 +582,53 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                 )}
               </div>
 
-              {/* Place on Map */}
-              <div>
-                <label className="block text-[12px] font-medium text-[#98989F] mb-1.5">
-                  Место на карте (опционально)
-                </label>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 text-[#8AE5C3] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={placeName}
-                    onChange={(e) => setPlaceName(e.target.value)}
-                    placeholder="Например: Магазин у дома, Спортзал, Дом"
-                    className="w-full h-11 pl-10 pr-3.5 rounded-[14px] bg-[#131417] border border-white/[0.09] text-[14px] text-white placeholder-[#636366] focus:outline-none focus:border-[#8AE5C3]/60 transition"
-                  />
+              {/* Optional Map Pin */}
+              <div className="rounded-[18px] apple-card p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-[12px] font-medium text-[#D1D3D9] flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#5CE1E6]" />
+                    <span>Точка на карте (опционально)</span>
+                  </label>
+
+                  {pinCoords ? (
+                    <button
+                      type="button"
+                      onClick={() => setPinCoords(null)}
+                      className="text-[11px] font-medium text-[#FF6B8B] hover:underline"
+                    >
+                      Убрать точку
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleUseCurrentGps}
+                      disabled={isLocatingPin}
+                      className="h-7 px-2.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-[11px] font-semibold text-[#5CE1E6] inline-flex items-center gap-1 transition disabled:opacity-50"
+                    >
+                      <Navigation className="w-3 h-3" />
+                      <span>{isLocatingPin ? 'Поиск GPS...' : 'Моё место (GPS)'}</span>
+                    </button>
+                  )}
                 </div>
+
+                {pinCoords ? (
+                  <div className="space-y-2">
+                    <div className="px-3 py-1.5 rounded-[10px] bg-[#30D158]/12 border border-[#30D158]/25 text-[11px] font-medium text-[#30D158] tabular-nums">
+                      Точка выбрана: {pinCoords.lat.toFixed(5)}, {pinCoords.lng.toFixed(5)}
+                    </div>
+                    <input
+                      type="text"
+                      value={placeName}
+                      onChange={(e) => setPlaceName(e.target.value)}
+                      placeholder="Название места (например: Магазин, Спортзал, Дом)"
+                      className="w-full h-10 px-3.5 rounded-[12px] bg-[#131417] border border-white/[0.09] text-[13px] text-white placeholder-[#636366] focus:outline-none focus:border-[#5CE1E6]/60 transition"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[#8E9098] leading-snug">
+                    Можно оставить без карты — миссия всё равно полностью работает. Либо привяжите к GPS или выберите место прямо в приложении «Карта».
+                  </p>
+                )}
               </div>
 
               {/* Reward Tier */}
@@ -598,7 +685,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={!title.trim() || subMissions.length === 0}
+                disabled={!title.trim()}
                 className="flex-1 h-12 rounded-[16px] apple-sunset-cta text-[#111214] text-[15px] font-semibold disabled:opacity-40 active:scale-[0.98] transition"
               >
                 Создать миссию

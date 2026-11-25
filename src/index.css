@@ -263,3 +263,73 @@ input[type='range'].apple-slider::-moz-range-thumb {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 107, 157, 0.48);
 }
+
+/* ======================================================
+   Solis OS / GTA 6-Inspired Phone Home Screen Materials
+   ====================================================== */
+.solis-phone-wallpaper {
+  background:
+    radial-gradient(115% 62% at 50% 6%, rgba(255, 55, 95, 0.42) 0%, rgba(255, 122, 69, 0.22) 34%, transparent 66%),
+    radial-gradient(90% 55% at 88% 72%, rgba(50, 173, 230, 0.34) 0%, transparent 64%),
+    radial-gradient(80% 50% at 12% 84%, rgba(191, 90, 242, 0.28) 0%, transparent 62%),
+    linear-gradient(175deg, #1b1026 0%, #171223 36%, #111521 72%, #0a0c12 100%);
+}
+
+.solis-phone-frame {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 0 0 8px #15161a,
+    0 0 0 9.5px rgba(255, 255, 255, 0.12),
+    0 36px 90px -20px rgba(0, 0, 0, 0.92),
+    0 0 80px -24px rgba(255, 55, 95, 0.28);
+}
+
+.ios-app-icon {
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+    0 12px 24px -10px rgba(0, 0, 0, 0.72);
+}
+
+.ios-app-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.04) 44%,
+    transparent 52%
+  );
+  pointer-events: none;
+}
+
+.ios-widget-glass {
+  background: linear-gradient(
+    160deg,
+    rgba(28, 28, 34, 0.68) 0%,
+    rgba(16, 17, 22, 0.76) 100%
+  );
+  -webkit-backdrop-filter: blur(26px) saturate(185%);
+  backdrop-filter: blur(26px) saturate(185%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 16px 34px -14px rgba(0, 0, 0, 0.72);
+}
+
+.ios-dock-glass {
+  background: linear-gradient(
+    180deg,
+    rgba(42, 43, 52, 0.62) 0%,
+    rgba(20, 21, 28, 0.74) 100%
+  );
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 20px 44px -14px rgba(0, 0, 0, 0.85);
+}

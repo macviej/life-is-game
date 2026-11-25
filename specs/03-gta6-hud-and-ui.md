@@ -1,6 +1,6 @@
 # Спецификация 03: Интерфейс GTA 6, HUD персонажа, Карта миссий и Экран тренировки (`src/components/hud/*`, `src/components/missions/*`, `src/components/stats/*`)
 
-> **Назначение для воркера (Flash / Hydrogen):** Сверстать аутентичный интерфейс в эстетике **GTA 6 (Vice City / Leonida Neon HUD)** с поддержкой мобильных экранов (чтобы было удобно нажимать одной рукой прямо у турника) и широких мониторов ПК.
+> **Архивная спецификация (UI переведён на Solis / Apple Liquid Glass):** Для всех задач по интерфейсу воркеры (`Gemini 4 Hydrogen`) обязаны руководствоваться `AGENTS.md` и `.agents/skills/sunset-fitness-designer/SKILL.md`.
 
 ---
 

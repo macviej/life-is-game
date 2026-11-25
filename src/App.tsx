@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import {
+  Smartphone,
   Crosshair,
   MapPin,
   Activity,
-  Bell,
-  User,
+  MessageCircle,
+  Trophy,
   SlidersHorizontal,
+  ChevronLeft,
 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GameProvider, useGame } from './context/GameContext';
 import { AuthModal } from './components/auth/AuthModal';
 import { SolisLogo } from './components/brand/SolisLogo';
 import { LifeMissionsHub } from './components/missions/LifeMissionsHub';
-import { MissionBuilderModal } from './components/missions/MissionBuilderModal';
+import {
+  InitialMapPinInput,
+  MissionBuilderModal,
+} from './components/missions/MissionBuilderModal';
 import { SolisWorldMap } from './components/map/SolisWorldMap';
 import { CharacterPhoneView } from './components/character/CharacterPhoneView';
 import { MissionMap } from './components/missions/MissionMap';
@@ -21,9 +26,10 @@ import { PlanOnboarding } from './components/missions/PlanOnboarding';
 import { MissionPassedModal } from './components/hud/MissionPassedModal';
 import { NotificationToast } from './components/phone/NotificationToast';
 import { MessagesTabView } from './components/phone/MessagesTabView';
+import { PhoneHomeScreen, PhoneAppTarget } from './components/phone/PhoneHomeScreen';
 import { RewardsShop } from './components/safehouse/RewardsShop';
 
-type AppTab = 'missions' | 'map' | 'fitness' | 'messages' | 'profile';
+type AppTab = 'home' | 'fitness' | 'messages' | 'map' | 'missions' | 'profile';
 type FitnessSubTab = 'overview' | 'plan';
 
 const NAV_TABS: {
@@ -31,12 +37,24 @@ const NAV_TABS: {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { id: 'missions', label: 'Миссии', icon: Crosshair },
-  { id: 'map', label: 'Карта', icon: MapPin },
+  { id: 'home', label: 'Телефон', icon: Smartphone },
   { id: 'fitness', label: 'Фитнес', icon: Activity },
-  { id: 'messages', label: 'Сводка', icon: Bell },
-  { id: 'profile', label: 'Профиль', icon: User },
+  { id: 'messages', label: 'Сообщения', icon: MessageCircle },
+  { id: 'map', label: 'Карта', icon: MapPin },
+  { id: 'missions', label: 'Миссии', icon: Crosshair },
+  { id: 'profile', label: 'Награды', icon: Trophy },
 ];
+
+const MOBILE_DOCK_TABS = NAV_TABS.slice(0, 5);
+
+const APP_TITLES: Record<AppTab, string> = {
+  home: 'Телефон',
+  fitness: 'Фитнес',
+  messages: 'Сообщения',
+  map: 'Карта',
+  missions: 'Миссии',
+  profile: 'Награды',
+};
 
 const AdaptiveAppShell: React.FC = () => {
   const {
@@ -46,16 +64,63 @@ const AdaptiveAppShell: React.FC = () => {
     setIsOnboardingOpen,
   } = useGame();
   const { user, setIsAuthModalOpen } = useAuth();
-  const [activeTab, setActiveTab] = useState<AppTab>('missions');
+  const [activeTab, setActiveTab] = useState<AppTab>('home');
   const [fitnessSubTab, setFitnessSubTab] = useState<FitnessSubTab>('overview');
   const [focusedMissionId, setFocusedMissionId] = useState<string | null>(null);
   const [isQuickBuilderOpen, setIsQuickBuilderOpen] = useState(false);
+  const [pendingMapPin, setPendingMapPin] = useState<InitialMapPinInput | null>(null);
+
+  const handleOpenQuickBuilder = (pin?: InitialMapPinInput) => {
+    setPendingMapPin(pin ?? null);
+    setIsQuickBuilderOpen(true);
+  };
+
+  const handleCloseQuickBuilder = () => {
+    setIsQuickBuilderOpen(false);
+    setPendingMapPin(null);
+  };
 
   const handleSelectTab = (tab: AppTab) => {
     setActiveTab(tab);
     if (tab === 'messages' && unreadNotificationsCount > 0) {
       markAllNotificationsRead();
     }
+  };
+
+  const handleLaunchApp = (target: PhoneAppTarget) => {
+    switch (target) {
+      case 'fitness':
+        setFitnessSubTab('overview');
+        setActiveTab('fitness');
+        break;
+      case 'fitness_plan':
+        setFitnessSubTab('plan');
+        setActiveTab('fitness');
+        break;
+      case 'messages':
+        handleSelectTab('messages');
+        break;
+      case 'map':
+        setActiveTab('map');
+        break;
+      case 'missions':
+        setActiveTab('missions');
+        break;
+      case 'profile':
+        setActiveTab('profile');
+        break;
+      case 'onboarding':
+        setIsOnboardingOpen(true);
+        break;
+      case 'auth':
+        setIsAuthModalOpen(true);
+        break;
+    }
+  };
+
+  const handleOpenFitness = (subTab: FitnessSubTab = 'overview') => {
+    setFitnessSubTab(subTab);
+    setActiveTab('fitness');
   };
 
   const handleOpenMissionInHub = (missionId: string) => {
@@ -68,6 +133,7 @@ const AdaptiveAppShell: React.FC = () => {
   };
 
   const isInActiveMission = Boolean(state.activeMissionId);
+  const isHomeScreen = activeTab === 'home' && !isInActiveMission;
   const hpPercent = Math.round(
     (state.stats.currentHp / Math.max(1, state.stats.maxHp)) * 100
   );
@@ -80,6 +146,23 @@ const AdaptiveAppShell: React.FC = () => {
       ? 'text-[#FFB36B]'
       : 'text-[#FF6B9D]';
 
+  if (isHomeScreen) {
+    return (
+      <>
+        <PhoneHomeScreen onLaunchApp={handleLaunchApp} />
+        <MissionBuilderModal
+          isOpen={isQuickBuilderOpen}
+          initialMapPin={pendingMapPin}
+          onClose={handleCloseQuickBuilder}
+        />
+        <NotificationToast onOpenMessages={() => handleSelectTab('messages')} />
+        <PlanOnboarding />
+        <MissionPassedModal />
+        <AuthModal />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full bg-[#0E0F11] text-white flex flex-col lg:flex-row">
       {/* DESKTOP SIDEBAR (>= 1024px) */}
@@ -87,10 +170,14 @@ const AdaptiveAppShell: React.FC = () => {
         <aside className="hidden lg:flex lg:flex-col lg:w-[272px] shrink-0 p-4 sticky top-0 h-screen">
           <div className="flex-1 rounded-[24px] apple-card p-4 flex flex-col justify-between">
             <div className="space-y-5">
-              {/* Brand Logo */}
-              <div className="px-1.5 pt-1">
+              {/* Brand Logo (clicks back to Phone Home) */}
+              <button
+                type="button"
+                onClick={() => handleSelectTab('home')}
+                className="px-1.5 pt-1 text-left transition hover:opacity-90 active:scale-[0.99]"
+              >
                 <SolisLogo variant="full" />
-              </div>
+              </button>
 
               {/* Compact Player Status */}
               <div className="rounded-[18px] apple-card-elevated px-3.5 py-3">
@@ -181,16 +268,25 @@ const AdaptiveAppShell: React.FC = () => {
         </aside>
       )}
 
-      {/* MOBILE STICKY HEADER (< 768px) */}
+      {/* MOBILE STICKY APP HEADER (< 768px) with Back to Phone Home */}
       {!isInActiveMission && (
-        <header className="md:hidden sticky top-0 z-30 px-4 pt-3 pb-2.5 flex items-center justify-between gap-3 bg-[#0E0F11]/88 backdrop-blur-xl border-b border-white/[0.05]">
-          <SolisLogo variant="compact" />
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-full apple-card text-[12px] font-semibold text-[#FFB36B] tabular-nums">
+        <header className="md:hidden sticky top-0 z-30 px-4 pt-3 pb-2.5 flex items-center justify-between gap-2 bg-[#0E0F11]/90 backdrop-blur-xl border-b border-white/[0.06]">
+          <button
+            type="button"
+            onClick={() => handleSelectTab('home')}
+            className="h-8 pl-2 pr-3 rounded-full apple-card hover:bg-[#25262B] text-[13px] font-semibold text-white inline-flex items-center gap-1 active:scale-95 transition"
+          >
+            <ChevronLeft className="w-4 h-4 text-[#FF85AE]" />
+            <span>Домой</span>
+          </button>
+
+          <span className="text-[14px] font-semibold tracking-[-0.01em] text-white truncate">
+            {APP_TITLES[activeTab]}
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            <span className="px-2.5 py-1 rounded-full apple-card text-[11px] font-semibold text-[#FFB36B] tabular-nums">
               ${state.cash.toLocaleString('ru-RU')}
-            </span>
-            <span className="px-2.5 py-1 rounded-full apple-card text-[12px] font-semibold text-[#5CE1E6] tabular-nums">
-              Ур. {state.level}
             </span>
           </div>
         </header>
@@ -199,13 +295,20 @@ const AdaptiveAppShell: React.FC = () => {
       {/* TABLET TOP BAR (768px – 1023px) */}
       {!isInActiveMission && (
         <header className="hidden md:flex lg:hidden sticky top-0 z-30 px-6 pt-4 pb-2.5 items-center justify-between gap-4 bg-[#0E0F11]/90 backdrop-blur-xl">
-          <SolisLogo variant="compact" />
+          <button
+            type="button"
+            onClick={() => handleSelectTab('home')}
+            className="h-9 pl-2.5 pr-3.5 rounded-full apple-card hover:bg-[#25262B] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 transition"
+          >
+            <ChevronLeft className="w-4 h-4 text-[#FF85AE]" />
+            <span>Телефон</span>
+          </button>
 
           <nav
             aria-label="Навигация планшета"
             className="rounded-full apple-liquid-glass p-1 flex items-center gap-1"
           >
-            {NAV_TABS.map((tab) => {
+            {NAV_TABS.filter((t) => t.id !== 'home').map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               const showBadge = tab.id === 'messages' && unreadNotificationsCount > 0;
@@ -257,7 +360,7 @@ const AdaptiveAppShell: React.FC = () => {
               {activeTab === 'missions' && (
                 <LifeMissionsHub
                   initialSelectedMissionId={focusedMissionId}
-                  onOpenFitnessTab={() => handleSelectTab('fitness')}
+                  onOpenFitnessTab={() => handleOpenFitness('overview')}
                   onFocusOnMap={handleFocusOnMap}
                 />
               )}
@@ -265,7 +368,7 @@ const AdaptiveAppShell: React.FC = () => {
               {activeTab === 'map' && (
                 <SolisWorldMap
                   onOpenMissionInHub={handleOpenMissionInHub}
-                  onOpenCreateMission={() => setIsQuickBuilderOpen(true)}
+                  onOpenCreateMission={handleOpenQuickBuilder}
                 />
               )}
 
@@ -304,7 +407,12 @@ const AdaptiveAppShell: React.FC = () => {
                 </div>
               )}
 
-              {activeTab === 'messages' && <MessagesTabView />}
+              {activeTab === 'messages' && (
+                <MessagesTabView
+                  onOpenFitness={handleOpenFitness}
+                  onOpenPlan={() => handleOpenFitness('plan')}
+                />
+              )}
               {activeTab === 'profile' && <RewardsShop />}
             </>
           )}
@@ -323,7 +431,7 @@ const AdaptiveAppShell: React.FC = () => {
             className="md:hidden fixed bottom-3.5 left-3 right-3 z-30 max-w-[460px] mx-auto rounded-[28px] apple-liquid-glass p-1.5"
           >
             <div className="grid grid-cols-5 gap-0.5">
-              {NAV_TABS.map((tab) => {
+              {MOBILE_DOCK_TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 const showBadge = tab.id === 'messages' && unreadNotificationsCount > 0;
@@ -367,7 +475,8 @@ const AdaptiveAppShell: React.FC = () => {
 
       <MissionBuilderModal
         isOpen={isQuickBuilderOpen}
-        onClose={() => setIsQuickBuilderOpen(false)}
+        initialMapPin={pendingMapPin}
+        onClose={handleCloseQuickBuilder}
       />
       <NotificationToast onOpenMessages={() => handleSelectTab('messages')} />
       <PlanOnboarding />

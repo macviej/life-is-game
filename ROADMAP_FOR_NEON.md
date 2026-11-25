@@ -1,71 +1,42 @@
-# 🚀 ПЛАН ЗАПУСКА ДЛЯ ОРКЕСТРАТОРА (GEMINI 4 NEON)
+# 🚀 ПЛЕЙБУК ОРКЕСТРАТОРА (CARBON / NEON → HYDROGEN)
 
-> **Роль Argon (Планировщик) выполнена:** вся архитектура, контракты типов TypeScript и модульные ТЗ для дешёвых моделей-исполнителей записаны в проект.  
-> **Следующий шаг:** переключите модель в меню Antigravity на **Gemini 4 Neon (High или Medium)** и отправьте ей команду запуска ниже.
+> **Статус проекта:** Базовое ядро **Life is Game (Solis Edition)** полностью собрано, переведено на дизайн-систему **Modern Apple Liquid Glass × Miami Sunset** и подключено к облачной БД (`api/auth.ts`, `api/sync.ts`).  
+> **Актуальный пул моделей:** `Gemini 4 Carbon` (Архитектор / Старший Оркестратор) · `Gemini 4 Neon` (Повседневный Оркестратор) · `Gemini 4 Hydrogen` (Быстрые и экономные воркеры). Устаревшие `Argon` и `3.8 Flash` не используются.
 
 ---
 
-## 📋 Что скопировать и отправить для Gemini 4 Neon:
+## 📋 Быстрый шаблон промпта для запуска новых эпиков
+
+Скопируйте и отправьте Оркестратору (`Gemini 4 Neon` или `Gemini 4 Carbon` в режиме `Medium`):
 
 ```text
-Ты — повседневный Оркестратор проекта "Life is Game (GTA 6 Fitness RPG)".
-Прочитай AGENTS.md и все 4 спецификации в папке specs/.
-Выполни сборку проекта по гибридной схеме с использованием дешёвых сабагентов (Model: "flash"):
-1. Инициализируй проект Vite + React + TypeScript + Tailwind CSS + lucide-react и создай базовый контракт src/types/game.ts строго по specs/01-domain-and-types.md.
-2. Запусти параллельно 3 сабагента (invoke_subagent с Model: "flash"):
-   - Воркер 1: реализовать src/data/*, src/engine/* и src/context/GameContext.tsx по specs/02-engine-and-missions.md.
-   - Воркер 2: реализовать src/components/hud/*, src/components/missions/* и src/components/stats/* по specs/03-gta6-hud-and-ui.md.
-   - Воркер 3: реализовать src/components/phone/* и src/components/safehouse/* по specs/04-phone-and-rewards.md.
-3. После завершения работы воркеров собери всё в src/App.tsx, проверь компиляцию через npm run build, исправь возможные нестыковки и запусти dev-сервер.
+Прочитай AGENTS.md и .agents/skills/sunset-fitness-designer/SKILL.md.
+Работай в режиме экономии токенов: не пиши рутинный код в основном контексте, а декомпозируй задачу и делегируй выполнение воркерам Gemini 4 Hydrogen:
+- Для точечных задач (1–2 файла): invoke_subagent (Model: "flash") или субагент ui-designer.
+- Для крупных задач (3+ независимых модуля): запусти параллельный swarm с воркерами gemini-4-hydrogen-low (UI и стили) и gemini-4-hydrogen-medium (логика и API), плюс верификатор gemini-4-hydrogen-low для проверки npm run build.
+
+Задача: [опишите новую фичу или доработку]
 ```
 
 ---
 
-## 🛠️ Чеклист для Оркестратора (Gemini 4 Neon)
+## 🛠️ Регламент распределения задач для Оркестратора
 
-Когда ты (Neon) получишь управление, действуй строго по этому алгоритму, не тратя свои токены на рутинную вёрстку:
+### 1. Когда какую модель выбирать вручную в чате
+- **`Gemini 4 Hydrogen (Low / Medium)`** — если нужно быстро поправить текст, цвет, отступы, добавить упражнение/миссию или пофиксить мелкий баг (минимальный расход квоты).
+- **`Gemini 4 Neon (Medium / High)`** — основной режим для повседневной разработки фич средней сложности и управления субагентами.
+- **`Gemini 4 Carbon (Medium / High)`** — для проектирования новых крупных подсистем, миграций БД (`api/*`), сложной архитектуры или координации большого роя (`swarm`).
 
-### Шаг 1. Подготовка фундамента (выполняет сам Neon за 1 минуту)
-1. Создать `package.json`, конфигурацию Vite, TypeScript и Tailwind CSS (или инициализировать шаблон).
-2. Установить зависимости: `npm install lucide-react clsx tailwind-merge`.
-3. Записать файл `src/types/game.ts` напрямую из [`specs/01-domain-and-types.md`](./specs/01-domain-and-types.md). Это гарантирует, что все 3 параллельных сабагента будут писать код под единый неизменный интерфейс.
+### 2. Матрица воркеров при запуске `swarm`
+При вызове `swarm{action:"add", name, model, brief}` назначай модели строго по сложности контура:
 
-### Шаг 2. Параллельное делегирование дешёвым исполнителям (`Model: "flash"`)
-Вызвать `invoke_subagent` (`TypeName: "self"`, `Model: "flash"`) одновременно для трёх независимых контуров:
+| Контур работ | Модель в `swarm` | Зона ответственности |
+| :--- | :--- | :--- |
+| **UI / Liquid Glass / Каталоги** | `gemini-4-hydrogen-low` | Компоненты в `src/components/*`, стили Tailwind, SVG-иллюстрации упражнений, карточки миссий (обязательно со ссылкой на `.agents/skills/sunset-fitness-designer/SKILL.md`). |
+| **Логика / Стейт / Serverless API** | `gemini-4-hydrogen-medium` | `src/context/*`, `src/engine/*`, `src/types/game.ts`, серверные хэндлеры `api/*` (`@neondatabase/serverless`). |
+| **Сложные 3D / Карты / Алгоритмы** | `gemini-4-neon-low` / `medium` | Нетривиальная геометрия `Three.js`, кастомные слои `Leaflet` (`SolisWorldMap`), сложные алгоритмы адаптивной периодизации. |
+| **Верификатор сборки (`verifier`)** | `gemini-4-hydrogen-low` | Запуск `npm run build` (`tsc && vite build`), проверка отсутствия ошибок типизации и регрессий импортов. |
 
-- **Subagent 1 (`Role: "Engine & Missions Worker"`):**
-  - Читает `src/types/game.ts` и `specs/02-engine-and-missions.md`.
-  - Создаёт:
-    - `src/data/contacts.ts`
-    - `src/data/exercises.ts`
-    - `src/data/missions.ts`
-    - `src/engine/planGenerator.ts`
-    - `src/engine/recoveryEngine.ts`
-    - `src/engine/soundEffects.ts`
-    - `src/context/GameContext.tsx`
-
-- **Subagent 2 (`Role: "GTA 6 HUD & Missions UI Worker"`):**
-  - Читает `src/types/game.ts` и `specs/03-gta6-hud-and-ui.md`.
-  - Создаёт:
-    - `src/components/hud/TopHudBar.tsx`
-    - `src/components/hud/MissionPassedModal.tsx`
-    - `src/components/missions/MissionMap.tsx`
-    - `src/components/missions/ActiveWorkout.tsx`
-    - `src/components/missions/PlanOnboarding.tsx`
-    - `src/components/stats/CharacterStatsView.tsx`
-    - `src/components/stats/WorkoutCatalog.tsx`
-
-- **Subagent 3 (`Role: "iFruit Phone & Rewards Worker"`):**
-  - Читает `src/types/game.ts` и `specs/04-phone-and-rewards.md`.
-  - Создаёт:
-    - `src/components/phone/NotificationToast.tsx`
-    - `src/components/phone/IFruitPhone.tsx`
-    - `src/components/safehouse/RewardsShop.tsx`
-
-### Шаг 3. Финальная интеграция и проверка качества (выполняет Neon)
-1. Собрать главный шелл приложения `src/App.tsx` с навигацией между вкладками:
-   - 🗺️ **КАРТА МИССИЙ** (Сюжетка Турника + Параллельные ветки + Grease the Groove)
-   - 📊 **СТАТЫ & ЗДОРОВЬЕ** (Полоски навыков GTA + Матрица восстановления мышц 0–100%)
-   - 🏋️ **ВСЕ ТРЕНИРОВКИ** (Каталог всех видов упражнений и свободный режим)
-   - 🏆 **УБЕЖИЩЕ & НАГРАДЫ** (Магазин виртуальных и реальных наград + сейвы)
-2. Проверить сборку `npm run build` и запустить `npm run dev`.
+### 3. Контроль квот и чистоты контекста
+1. Если диалог разросся после крупной фичи — используй `/compact` или начинай новый чат, так как все правила уже зафиксированы в `AGENTS.md`.
+2. Если воркер в `swarm` упёрся в лимит квоты, переключай его через `swarm{action:"model", name:"<worker>", model:"gemini-4-hydrogen-low"}` (или резервный `"gpt-oss-120b-medium"`), не убивая контекст воркера через `kill`.

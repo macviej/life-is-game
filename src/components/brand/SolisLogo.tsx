@@ -177,11 +177,11 @@ export const SolisLogo: React.FC<SolisLogoProps> = ({
           LIFE IS GAME
         </div>
         <div
-          className={`mt-1 font-semibold uppercase tracking-[0.22em] bg-gradient-to-r from-[#FF6B9D] via-[#FFB36B] to-[#5CE1E6] bg-clip-text text-transparent whitespace-nowrap ${
+          className={`mt-1 font-semibold uppercase tracking-[0.18em] bg-gradient-to-r from-[#FF6B9D] via-[#FFB36B] to-[#5CE1E6] bg-clip-text text-transparent whitespace-nowrap ${
             isCompact ? 'text-[9px]' : 'text-[10px]'
           }`}
         >
-          SOLIS COAST
+          ЖИЗНЬ — ЭТО ИГРА
         </div>
       </div>
     </div>
