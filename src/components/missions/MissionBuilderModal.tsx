@@ -366,7 +366,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
       aria-modal="true"
       aria-label="Новая миссия"
     >
-      <div className="w-full sm:max-w-[520px] max-h-[90vh] flex flex-col rounded-t-[28px] sm:rounded-[28px] bg-[#16171B] border border-white/[0.1] shadow-[0_24px_80px_rgba(0,0,0,0.65)] overflow-hidden">
+      <div className="w-full sm:max-w-[520px] max-h-[90vh] flex flex-col rounded-t-[28px] sm:rounded-[28px] bg-[#1C1C1E] shadow-[0_24px_80px_rgba(0,0,0,0.65)] overflow-hidden">
         {/* Header */}
         <div className="shrink-0 px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
           <h2 className="text-[18px] font-bold tracking-[-0.02em] text-white">
@@ -375,7 +375,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
           <button
             type="button"
             onClick={isMapPickerOpen ? () => setIsMapPickerOpen(false) : onClose}
-            className="w-8 h-8 rounded-full bg-white/[0.07] hover:bg-white/[0.12] flex items-center justify-center text-[#A1A3AA] hover:text-white transition"
+            className="w-11 h-11 -mr-2 rounded-full hover:bg-white/[0.08] flex items-center justify-center text-[#98989F] hover:text-white transition"
             aria-label="Закрыть"
           >
             <X className="w-4 h-4" />
@@ -389,7 +389,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
               <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
               {isMapLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/45 pointer-events-none">
-                  <Loader2 className="w-6 h-6 text-[#FF85AE] animate-spin" />
+                  <Loader2 className="w-6 h-6 text-[#FF6B8B] animate-spin" />
                 </div>
               )}
               <div className="absolute top-3 left-3 right-3 pointer-events-none flex justify-center">
@@ -399,11 +399,11 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
               </div>
             </div>
 
-            <div className="shrink-0 p-4 border-t border-white/[0.08] bg-[#16171B] flex items-center gap-2.5">
+            <div className="shrink-0 p-4 border-t border-white/[0.08] bg-[#1C1C1E] flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setIsMapPickerOpen(false)}
-                className="h-11 px-4 rounded-[14px] bg-[#25262B] hover:bg-[#2F3137] text-[14px] font-semibold text-white/90 transition"
+                className="h-11 px-4 rounded-[14px] bg-white/[0.08] hover:bg-white/[0.12] text-[14px] font-semibold text-white/90 transition"
               >
                 Отмена
               </button>
@@ -426,20 +426,20 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
             {/* Template Selector */}
             <div className="space-y-2">
-              <label className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#8E9098]">
+              <label className="text-[13px] font-semibold text-[#98989F]">
                 Шаблон задания
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => handleSelectTemplate('custom')}
-                  className={`h-11 rounded-[14px] border text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 transition active:scale-[0.98] ${
+                  className={`h-11 rounded-[14px] border text-[14px] font-semibold inline-flex items-center justify-center gap-1.5 transition active:scale-[0.98] ${
                     template === 'custom'
                       ? 'bg-[#FF375F]/15 border-[#FF375F]/60 text-white'
-                      : 'bg-[#222328] border-white/[0.07] text-[#A1A3AA] hover:text-white'
+                      : 'bg-white/[0.06] border-transparent text-[#98989F] hover:text-white'
                   }`}
                 >
-                  <Sparkles className="w-4 h-4 text-[#FF85AE]" />
+                  <Sparkles className="w-4 h-4 text-[#FF6B8B]" />
                   <span>Своё</span>
                 </button>
                 <button
@@ -447,11 +447,11 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                   onClick={() => handleSelectTemplate('shopping')}
                   className={`h-11 rounded-[14px] border text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 transition active:scale-[0.98] ${
                     template === 'shopping'
-                      ? 'bg-[#FFB703]/15 border-[#FFB703]/60 text-white'
-                      : 'bg-[#222328] border-white/[0.07] text-[#A1A3AA] hover:text-white'
+                      ? 'bg-[#FF375F]/15 border-[#FF375F]/60 text-white'
+                      : 'bg-white/[0.06] border-transparent text-[#98989F] hover:text-white'
                   }`}
                 >
-                  <ShoppingBag className="w-4 h-4 text-[#FFB703]" />
+                  <ShoppingBag className="w-4 h-4 text-[#FF6B8B]" />
                   <span>Магазин</span>
                 </button>
                 <button
@@ -459,11 +459,11 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                   onClick={() => handleSelectTemplate('repair')}
                   className={`h-11 rounded-[14px] border text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 transition active:scale-[0.98] ${
                     template === 'repair'
-                      ? 'bg-[#FF7A45]/15 border-[#FF7A45]/60 text-white'
-                      : 'bg-[#222328] border-white/[0.07] text-[#A1A3AA] hover:text-white'
+                      ? 'bg-[#FF375F]/15 border-[#FF375F]/60 text-white'
+                      : 'bg-white/[0.06] border-transparent text-[#98989F] hover:text-white'
                   }`}
                 >
-                  <Hammer className="w-4 h-4 text-[#FF7A45]" />
+                  <Hammer className="w-4 h-4 text-[#FF6B8B]" />
                   <span>Ремонт</span>
                 </button>
               </div>
@@ -472,7 +472,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
             {/* Pop-up Quick Options for Repair */}
             {template === 'repair' && (
               <div className="space-y-2">
-                <div className="text-[12px] font-medium text-[#98989F]">
+                <div className="text-[13px] font-medium text-[#98989F]">
                   Какой ремонт сделать? (можно просто выбрать)
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -483,13 +483,13 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                         key={opt.id}
                         type="button"
                         onClick={() => handleSelectRepairOption(opt)}
-                        className={`px-3 py-2 rounded-full text-[13px] font-medium border inline-flex items-center gap-1.5 transition active:scale-95 ${
+                        className={`px-4 py-2.5 rounded-full text-[14px] font-medium border inline-flex items-center gap-1.5 transition active:scale-95 ${
                           active
-                            ? 'bg-[#FF7A45]/20 border-[#FF7A45]/70 text-white'
-                            : 'bg-[#222328] border-white/[0.08] text-white/85 hover:bg-[#2A2B32]'
+                            ? 'bg-[#FF375F]/20 border-[#FF375F]/70 text-white'
+                            : 'bg-white/[0.06] border-transparent text-white/85 hover:bg-white/[0.1]'
                         }`}
                       >
-                        {active && <Check className="w-3.5 h-3.5 text-[#FF7A45]" />}
+                        {active && <Check className="w-3.5 h-3.5 text-[#FF6B8B]" />}
                         <span>{opt.label}</span>
                       </button>
                     );
@@ -501,7 +501,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
             {/* Pop-up Quick Options for Shopping */}
             {template === 'shopping' && (
               <div className="space-y-2">
-                <div className="text-[12px] font-medium text-[#98989F]">
+                <div className="text-[13px] font-medium text-[#98989F]">
                   Что купить? (необязательно — можно сразу создать)
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -512,13 +512,13 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                         key={opt.id}
                         type="button"
                         onClick={() => handleSelectShopOption(opt)}
-                        className={`px-3 py-2 rounded-full text-[13px] font-medium border inline-flex items-center gap-1.5 transition active:scale-95 ${
+                        className={`px-4 py-2.5 rounded-full text-[14px] font-medium border inline-flex items-center gap-1.5 transition active:scale-95 ${
                           active
-                            ? 'bg-[#FFB703]/20 border-[#FFB703]/70 text-white'
-                            : 'bg-[#222328] border-white/[0.08] text-white/85 hover:bg-[#2A2B32]'
+                            ? 'bg-[#FF375F]/20 border-[#FF375F]/70 text-white'
+                            : 'bg-white/[0.06] border-transparent text-white/85 hover:bg-white/[0.1]'
                         }`}
                       >
-                        {active && <Check className="w-3.5 h-3.5 text-[#FFB703]" />}
+                        {active && <Check className="w-3.5 h-3.5 text-[#FF6B8B]" />}
                         <span>{opt.label}</span>
                       </button>
                     );
@@ -531,7 +531,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
             <div className="space-y-1.5">
               <label
                 htmlFor="mission-title-input"
-                className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#8E9098]"
+                className="text-[13px] font-semibold text-[#98989F]"
               >
                 {template === 'custom' ? 'Название миссии' : 'Название (необязательно)'}
               </label>
@@ -547,14 +547,14 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                     ? 'Ремонт по дому'
                     : 'Например: Разобрать рабочий стол'
                 }
-                className="w-full h-11 px-3.5 rounded-[14px] bg-[#222328] border border-white/[0.08] text-[14px] text-white placeholder:text-[#636366] focus:outline-none focus:border-[#FF6B9D]/60 transition"
+                className="w-full h-11 px-3.5 rounded-[14px] bg-white/[0.06] text-[15px] text-white placeholder:text-[#636366] focus:outline-none focus:border-[#FF375F]/60 transition"
               />
             </div>
 
             {/* Category / Group pills (only for Custom) */}
             {template === 'custom' && groups.length > 0 && (
               <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#8E9098]">
+                <label className="text-[13px] font-semibold text-[#98989F]">
                   Категория
                 </label>
                 <div className="flex flex-wrap gap-1.5">
@@ -567,10 +567,10 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                           key={g.id}
                           type="button"
                           onClick={() => setGroupId(g.id)}
-                          className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition ${
+                          className={`px-3.5 py-2.5 rounded-full text-[13px] font-medium border transition ${
                             active
                               ? 'bg-white/15 border-white/30 text-white'
-                              : 'bg-[#222328] border-white/[0.06] text-[#98989F] hover:text-white'
+                              : 'bg-white/[0.06] border-transparent text-[#98989F] hover:text-white'
                           }`}
                         >
                           {g.name}
@@ -583,21 +583,21 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
 
             {/* Map Point Picker */}
             <div className="space-y-2">
-              <label className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#8E9098]">
+              <label className="text-[13px] font-semibold text-[#98989F]">
                 Точка на карте
               </label>
 
               {pinCoords ? (
-                <div className="rounded-[14px] bg-[#222328] border border-white/[0.08] p-3 flex items-center justify-between gap-2">
+                <div className="rounded-[14px] bg-white/[0.06] p-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-[#FF375F]/15 text-[#FF85AE] flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[#FF375F]/15 text-[#FF6B8B] flex items-center justify-center shrink-0">
                       <MapPin className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
                       <div className="text-[13px] font-semibold text-white truncate">
                         {placeName.trim() || 'Точка выбрана'}
                       </div>
-                      <div className="text-[11px] text-[#8E9098] tabular-nums">
+                      <div className="text-[12px] text-[#98989F] tabular-nums">
                         {pinCoords.lat.toFixed(4)}, {pinCoords.lng.toFixed(4)}
                       </div>
                     </div>
@@ -606,14 +606,14 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsMapPickerOpen(true)}
-                      className="px-2.5 py-1.5 rounded-[10px] bg-white/[0.08] hover:bg-white/[0.14] text-[12px] font-medium text-white transition"
+                      className="px-3.5 h-10 rounded-[12px] bg-white/[0.08] hover:bg-white/[0.14] text-[13px] font-medium text-white transition"
                     >
                       Изменить
                     </button>
                     <button
                       type="button"
                       onClick={() => setPinCoords(null)}
-                      className="w-8 h-8 rounded-[10px] bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center text-[#98989F] hover:text-white transition"
+                      className="w-10 h-10 rounded-[12px] bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center text-[#98989F] hover:text-white transition"
                       aria-label="Убрать точку"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -624,9 +624,9 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsMapPickerOpen(true)}
-                  className="w-full h-11 px-4 rounded-[14px] bg-[#222328] hover:bg-[#2A2B32] border border-white/[0.08] text-[13px] font-semibold text-white inline-flex items-center justify-center gap-2 transition active:scale-[0.99]"
+                  className="w-full h-11 px-4 rounded-[14px] bg-[#222328] hover:bg-white/[0.1] text-[13px] font-semibold text-white inline-flex items-center justify-center gap-2 transition active:scale-[0.99]"
                 >
-                  <MapPin className="w-4 h-4 text-[#FF85AE]" />
+                  <MapPin className="w-4 h-4 text-[#FF6B8B]" />
                   <span>Выбрать точку на карте</span>
                 </button>
               )}
@@ -634,7 +634,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
 
             {/* Optional Steps / Checklist */}
             <div className="space-y-2">
-              <label className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#8E9098]">
+              <label className="text-[13px] font-semibold text-[#98989F]">
                 Шаги (необязательно)
               </label>
 
@@ -643,13 +643,13 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                   {subMissions.map((item) => (
                     <div
                       key={item.id}
-                      className="px-3 py-2 rounded-[12px] bg-[#222328] border border-white/[0.06] flex items-center justify-between gap-2"
+                      className="px-4 min-h-[44px] py-2 rounded-[12px] bg-white/[0.06] flex items-center justify-between gap-2"
                     >
-                      <span className="text-[13px] text-white/90 truncate">{item.title}</span>
+                      <span className="text-[15px] text-white truncate">{item.title}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveSubMission(item.id)}
-                        className="text-[#8E9098] hover:text-[#FF6B9D] transition"
+                        className="w-11 h-11 -mr-3 flex items-center justify-center text-[#98989F] hover:text-[#FF6B8B] transition"
                         aria-label="Удалить шаг"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -671,13 +671,13 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
                     }
                   }}
                   placeholder="Добавить шаг..."
-                  className="flex-1 h-10 px-3.5 rounded-[12px] bg-[#222328] border border-white/[0.08] text-[13px] text-white placeholder:text-[#636366] focus:outline-none focus:border-[#FF6B9D]/60 transition"
+                  className="flex-1 h-11 px-3.5 rounded-[12px] bg-white/[0.06] text-[15px] text-white placeholder:text-[#636366] focus:outline-none focus:border-[#FF375F]/60 transition"
                 />
                 <button
                   type="button"
                   onClick={handleAddSubMission}
                   disabled={!subTitle.trim()}
-                  className="w-10 h-10 rounded-[12px] bg-[#2A2B32] hover:bg-[#34363F] disabled:opacity-40 flex items-center justify-center text-white transition"
+                  className="w-11 h-11 rounded-[12px] bg-white/[0.1] hover:bg-white/[0.16] disabled:opacity-40 flex items-center justify-center text-white transition"
                   aria-label="Добавить шаг"
                 >
                   <Plus className="w-4 h-4" />
@@ -690,7 +690,7 @@ export const MissionBuilderModal: React.FC<MissionBuilderModalProps> = ({
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="w-full h-12 rounded-[16px] apple-sunset-cta text-[#111214] text-[15px] font-bold disabled:opacity-40 transition active:scale-[0.98]"
+                className="w-full h-[54px] rounded-[18px] apple-sunset-cta text-[#111214] text-[16px] font-semibold disabled:opacity-40 transition active:scale-[0.98]"
               >
                 Создать миссию
               </button>

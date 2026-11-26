@@ -95,6 +95,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
   const [builderOpen, setBuilderOpen] = useState(false);
   const [builderInitialTab, setBuilderInitialTab] = useState<'mission' | 'group'>('mission');
   const [highlightedMissionId, setHighlightedMissionId] = useState<string | null>(null);
+  const [addOpenId, setAddOpenId] = useState<string | null>(null);
   const [draftsByMissionId, setDraftsByMissionId] = useState<Record<string, SubMissionAddDraft>>({});
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -209,7 +210,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
     setBuilderOpen(true);
   };
 
-  const openNewGroupModal = () => {
+  const _openNewGroupModal = () => {
     setBuilderInitialTab('group');
     setBuilderOpen(true);
   };
@@ -220,7 +221,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
   const renderSubMissionRow = (mission: LifeMission, sub: LifeSubMission) => (
     <div
       key={sub.id}
-      className="group px-3.5 py-2.5 flex items-center justify-between gap-2.5 hover:bg-white/[0.025] transition"
+      className="group px-4 min-h-[48px] py-2.5 flex items-center justify-between gap-2.5 hover:bg-white/[0.025] transition"
     >
       <button
         type="button"
@@ -231,7 +232,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           className={`mt-0.5 w-5 h-5 rounded-[7px] border flex items-center justify-center shrink-0 transition ${
             sub.completed
               ? 'bg-[#30D158] border-[#30D158] text-[#0E0F11]'
-              : 'border-white/25 bg-[#131417] text-transparent hover:border-[#E5A3BD]'
+              : 'border-white/25 text-transparent hover:border-[#FF375F]'
           }`}
         >
           <Check className="w-3.5 h-3.5 stroke-[2.8]" />
@@ -247,18 +248,18 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
               {sub.title}
             </span>
             {sub.quantity && (
-              <span className="px-2 py-0.5 rounded-md bg-white/[0.07] text-[11px] font-medium text-[#C8CAD0] tabular-nums">
+              <span className="px-2 py-0.5 rounded-md bg-white/[0.07] text-[12px] font-medium text-[#98989F] tabular-nums">
                 {sub.quantity}
               </span>
             )}
             {sub.categoryTag && mission.kind !== 'shopping' && (
-              <span className="px-2 py-0.5 rounded-md bg-[#8AE5C3]/12 text-[11px] font-medium text-[#8AE5C3]">
+              <span className="px-2 py-0.5 rounded-md bg-white/[0.07] text-[12px] font-medium text-[#98989F]">
                 {sub.categoryTag}
               </span>
             )}
           </div>
           {sub.note && (
-            <p className="mt-0.5 text-[12px] text-[#8E9098] leading-snug">{sub.note}</p>
+            <p className="mt-0.5 text-[12px] text-[#98989F] leading-snug">{sub.note}</p>
           )}
         </div>
       </button>
@@ -267,7 +268,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
         <button
           type="button"
           onClick={() => removeLifeSubMission(mission.id, sub.id)}
-          className="shrink-0 w-7 h-7 rounded-full opacity-70 sm:opacity-0 group-hover:opacity-100 hover:bg-white/[0.08] text-[#8E9098] hover:text-[#FF6B8B] flex items-center justify-center transition"
+          className="shrink-0 w-9 h-9 rounded-full opacity-70 sm:opacity-0 group-hover:opacity-100 hover:bg-white/[0.08] text-[#98989F] hover:text-[#FF6B8B] flex items-center justify-center transition"
           aria-label="Удалить пункт"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -292,17 +293,17 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           return (
             <div
               key={category}
-              className="rounded-[16px] bg-[#131417] border border-white/[0.06] overflow-hidden"
+              className="rounded-[16px] bg-white/[0.04] overflow-hidden"
             >
-              <div className="px-3.5 py-2 bg-white/[0.03] border-b border-white/[0.05] flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8AE5C3]">
+              <div className="px-4 py-2 border-b border-white/[0.07] flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[#98989F]">
                   {category}
                 </span>
-                <span className="text-[11px] font-medium text-[#8E9098] tabular-nums">
+                <span className="text-[11px] font-medium text-[#98989F] tabular-nums">
                   {catDone}/{items.length}
                 </span>
               </div>
-              <div className="divide-y divide-white/[0.05]">
+              <div className="divide-y divide-white/[0.07]">
                 {items.map((sub) => renderSubMissionRow(mission, sub))}
               </div>
             </div>
@@ -314,7 +315,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
 
   const renderMissionCard = (mission: LifeMission) => {
     const group = groupMap.get(mission.groupId);
-    const accentColor = group?.color ?? '#E5A3BD';
+    const accentColor = group?.color ?? '#FF375F';
     const markerCode = group?.mapMarkerCode ?? '?';
     const doneSubs = mission.subMissions.filter((s) => s.completed).length;
     const totalSubs = mission.subMissions.length;
@@ -336,7 +337,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
         }}
         className={`rounded-[22px] p-5 space-y-4 transition-all ${
           isHighlighted
-            ? 'apple-card-active ring-2 ring-[#E5A3BD]/60'
+            ? 'apple-card-active ring-2 ring-[#FF375F]/60'
             : 'apple-card'
         }`}
       >
@@ -357,15 +358,12 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
 
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span
-                  className="text-[11px] font-semibold uppercase tracking-[0.09em]"
-                  style={{ color: accentColor }}
-                >
+                <span className="text-[12px] font-semibold text-[#98989F]">
                   {group?.name ?? 'Миссия'}
                 </span>
 
                 {mission.isBigMission && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E5A3BD]/15 border border-[#E5A3BD]/35 text-[11px] font-semibold text-[#E5A3BD]">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FF375F]/15 text-[12px] font-semibold text-[#FF6B8B]">
                     <Heart className="w-3 h-3" />
                     Большая миссия
                   </span>
@@ -392,8 +390,10 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
 
           <button
             type="button"
-            onClick={() => deleteLifeMission(mission.id)}
-            className="shrink-0 w-8 h-8 rounded-full hover:bg-white/[0.07] text-[#636366] hover:text-[#FF6B8B] flex items-center justify-center transition"
+            onClick={() => {
+              if (window.confirm(`Удалить миссию «${mission.title}»?`)) deleteLifeMission(mission.id);
+            }}
+            className="shrink-0 w-11 h-11 -mr-2 -mt-2 rounded-full hover:bg-white/[0.07] text-[#636366] hover:text-[#FF6B8B] flex items-center justify-center transition"
             aria-label={`Удалить миссию ${mission.title}`}
             title="Удалить миссию"
           >
@@ -406,7 +406,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium tabular-nums">
               {mission.rewardHealth > 0 && (
-                <span className="px-2.5 py-1 rounded-full bg-[#8AE5C3]/12 text-[#8AE5C3]">
+                <span className="px-2.5 py-1 rounded-full bg-white/[0.07] text-white">
                   +{mission.rewardHealth} HP
                 </span>
               )}
@@ -416,7 +416,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
             <button
               type="button"
               onClick={() => onFocusOnMap?.(mission.id)}
-              className="h-8 px-3 rounded-full apple-card-elevated hover:bg-[#32343B] text-[12px] font-medium text-[#8AE5C3] inline-flex items-center gap-1.5 active:scale-95 transition"
+              className="h-10 px-3.5 rounded-full apple-card-elevated hover:bg-[#32343B] text-[13px] font-medium text-white inline-flex items-center gap-1.5 active:scale-95 transition"
             >
               <MapPin className="w-3.5 h-3.5" />
               <span className="truncate max-w-[160px]">{mission.mapPin.placeName}</span>
@@ -431,14 +431,24 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           mission.kind === 'shopping' ? (
             renderShoppingGroupedList(mission)
           ) : (
-            <div className="rounded-[16px] bg-[#131417] border border-white/[0.06] divide-y divide-white/[0.06] overflow-hidden">
+            <div className="rounded-[16px] bg-white/[0.04] divide-y divide-white/[0.07] overflow-hidden">
               {mission.subMissions.map((sub) => renderSubMissionRow(mission, sub))}
             </div>
           )
         )}
 
         {/* Inline Quick Add Item (Active Missions Only) */}
-        {mission.status === 'active' && (
+        {mission.status === 'active' && addOpenId !== mission.id && (
+          <button
+            type="button"
+            onClick={() => setAddOpenId(mission.id)}
+            className="w-full h-11 rounded-[14px] text-[14px] font-medium text-[#98989F] hover:text-white inline-flex items-center justify-center gap-1.5 transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{mission.kind === 'shopping' ? 'Добавить продукт' : 'Добавить шаг'}</span>
+          </button>
+        )}
+        {mission.status === 'active' && addOpenId === mission.id && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <input
@@ -456,7 +466,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
                     ? '+ Добавить продукт в список'
                     : '+ Добавить шаг'
                 }
-                className="flex-1 min-w-0 h-9 px-3 rounded-[12px] bg-[#131417] border border-white/[0.08] text-[13px] text-white placeholder-[#636366] focus:outline-none focus:border-[#E5A3BD]/60"
+                className="flex-1 min-w-0 h-11 px-3.5 rounded-[12px] bg-white/[0.06] text-[15px] text-white placeholder-[#636366] focus:outline-none focus:ring-1 focus:ring-[#FF375F]/60"
               />
               <input
                 type="text"
@@ -469,13 +479,13 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
                   }
                 }}
                 placeholder={mission.kind === 'shopping' ? 'Кол-во' : 'Время/шт'}
-                className="w-20 sm:w-24 h-9 px-2.5 rounded-[12px] bg-[#131417] border border-white/[0.08] text-[12px] text-white placeholder-[#636366] focus:outline-none focus:border-[#E5A3BD]/60"
+                className="w-20 sm:w-24 h-11 px-3 rounded-[12px] bg-white/[0.06] text-[14px] text-white placeholder-[#636366] focus:outline-none focus:ring-1 focus:ring-[#FF375F]/60"
               />
               <button
                 type="button"
                 onClick={() => handleQuickAddSubMission(mission)}
                 disabled={!draft.title.trim()}
-                className="h-9 px-3 rounded-[12px] apple-card-elevated hover:bg-[#32343B] text-[12px] font-semibold text-white disabled:opacity-40 inline-flex items-center gap-1 active:scale-95 transition"
+                className="h-11 px-3.5 rounded-[12px] apple-card-elevated hover:bg-[#32343B] text-[13px] font-semibold text-white disabled:opacity-40 inline-flex items-center gap-1 active:scale-95 transition"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Добавить</span>
@@ -484,7 +494,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
 
             {mission.kind === 'shopping' && draft.title.trim().length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-[#8E9098]">Категория:</span>
+                <span className="text-[12px] text-[#98989F]">Категория:</span>
                 {SHOPPING_QUICK_TAGS.map((tag) => {
                   const selected = draft.tag === tag;
                   return (
@@ -494,9 +504,9 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
                       onClick={() =>
                         setDraft(mission.id, { tag: selected ? '' : tag })
                       }
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition ${
+                      className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ${
                         selected
-                          ? 'bg-[#8AE5C3] text-[#111214]'
+                          ? 'apple-sunset-cta text-[#111214]'
                           : 'bg-white/[0.06] text-[#98989F] hover:text-white'
                       }`}
                     >
@@ -514,9 +524,9 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           {totalSubs > 0 && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-[12px] tabular-nums">
-                <span className="text-[#8E9098]">Прогресс подмиссий</span>
+                <span className="text-[#98989F]">Выполнено</span>
                 <span className="font-semibold text-white">
-                  {doneSubs} / {totalSubs}
+                  {doneSubs} из {totalSubs}
                 </span>
               </div>
               <div className="h-[5px] w-full rounded-full bg-white/[0.08] overflow-hidden">
@@ -524,7 +534,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
                   className="h-full rounded-full transition-all duration-300"
                   style={{
                     width: `${progressPct}%`,
-                    backgroundColor: allSubsDone ? '#30D158' : accentColor,
+                    background: allSubsDone ? '#30D158' : 'linear-gradient(90deg,#FF375F,#FF7A45)',
                   }}
                 />
               </div>
@@ -532,18 +542,14 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           )}
 
           {mission.status === 'active' ? (
-            <div className="space-y-1.5">
-              <p className="text-center text-[12px] text-[#8E9098]">
-                {allSubsDone
-                  ? 'Все пункты отмечены'
-                  : 'Отметь каждый пункт. Тогда придёт «Люсии это понравится».'}
-              </p>
-            </div>
+            allSubsDone ? (
+              <p className="text-center text-[13px] text-[#98989F]">Все пункты отмечены</p>
+            ) : null
           ) : (
             <button
               type="button"
               onClick={() => reopenLifeMission(mission.id)}
-              className="w-full h-10 rounded-[14px] apple-card-elevated hover:bg-[#32343B] text-[13px] font-semibold text-[#D1D3D9] hover:text-white inline-flex items-center justify-center gap-1.5 active:scale-[0.98] transition"
+              className="w-full h-11 rounded-[14px] apple-card-elevated hover:bg-[#32343B] text-[14px] font-semibold text-white hover:text-white inline-flex items-center justify-center gap-1.5 active:scale-[0.98] transition"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Вернуть в активные</span>
@@ -562,7 +568,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           <h1 className="text-[28px] md:text-[32px] font-semibold tracking-[-0.025em] text-white leading-tight">
             Миссии
           </h1>
-          <p className="mt-1 text-[13px] text-[#8E9098]">
+          <p className="mt-1 text-[14px] text-[#98989F]">
             Одна миссия — список пунктов. Пока не отмечено всё, она не закрыта.
           </p>
         </div>
@@ -570,7 +576,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
         <button
           type="button"
           onClick={openNewMissionModal}
-          className="h-10 px-4 rounded-full apple-sunset-cta text-[#111214] text-[13px] font-semibold inline-flex items-center gap-1.5 active:scale-95 transition"
+          className="h-11 px-5 rounded-full apple-sunset-cta text-[#111214] text-[14px] font-semibold inline-flex items-center gap-1.5 active:scale-95 transition"
         >
           <Plus className="w-4 h-4 stroke-[2.4]" />
           <span>Новая миссия</span>
@@ -582,10 +588,10 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
         <button
           type="button"
           onClick={() => setSelectedGroupId('all')}
-          className={`shrink-0 h-10 px-3.5 rounded-full text-[13px] font-semibold inline-flex items-center gap-2 transition active:scale-95 ${
+          className={`shrink-0 h-11 px-4 rounded-full text-[14px] font-semibold inline-flex items-center gap-2 transition active:scale-95 ${
             selectedGroupId === 'all'
               ? 'bg-white text-[#111214]'
-              : 'apple-card text-[#C8CAD0] hover:text-white'
+              : 'apple-card text-white/80 hover:text-white'
           }`}
         >
           <span>Все</span>
@@ -609,17 +615,13 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
               key={group.id}
               type="button"
               onClick={() => setSelectedGroupId(group.id)}
-              className={`shrink-0 h-10 px-3.5 rounded-full text-[13px] font-medium inline-flex items-center gap-2 transition active:scale-95 ${
+              className={`shrink-0 h-11 px-4 rounded-full text-[14px] font-medium inline-flex items-center gap-2 transition active:scale-95 ${
                 isSelected
                   ? 'bg-white text-[#111214] font-semibold'
-                  : 'apple-card text-[#D1D3D9] hover:text-white'
+                  : 'apple-card text-white/80 hover:text-white'
               }`}
             >
-              <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: group.color }}
-              />
-              <span className={isSelected ? 'text-[#111214]' : 'text-[#C8CAD0]'}>
+              <span className={isSelected ? 'text-[#111214]' : 'text-white/80'}>
                 {renderGroupIcon(group.icon, 'w-3.5 h-3.5')}
               </span>
               <span>{group.name}</span>
@@ -638,14 +640,6 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
           );
         })}
 
-        <button
-          type="button"
-          onClick={openNewGroupModal}
-          className="shrink-0 h-10 px-3.5 rounded-full apple-card-elevated hover:bg-[#32343B] text-[13px] font-semibold text-[#8AE5C3] inline-flex items-center gap-1.5 active:scale-95 transition"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Миссия</span>
-        </button>
       </div>
 
       {/* Selected Custom Group Banner (with optional delete) */}
@@ -666,7 +660,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
               <div className="text-[14px] font-semibold text-white truncate">
                 {selectedGroupObj.name}
               </div>
-              <div className="text-[12px] text-[#8E9098] truncate">
+              <div className="text-[12px] text-[#98989F] truncate">
                 {selectedGroupObj.description}
               </div>
             </div>
@@ -679,7 +673,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
                 deleteMissionGroup(selectedGroupObj.id);
                 setSelectedGroupId('all');
               }}
-              className="shrink-0 h-8 px-2.5 rounded-full bg-white/[0.05] hover:bg-[#FF6B8B]/15 text-[12px] text-[#8E9098] hover:text-[#FF6B8B] inline-flex items-center gap-1 transition"
+              className="shrink-0 h-8 px-2.5 rounded-full bg-white/[0.05] hover:bg-[#FF6B8B]/15 text-[12px] text-[#98989F] hover:text-[#FF6B8B] inline-flex items-center gap-1 transition"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Удалить миссию</span>
@@ -689,7 +683,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
       )}
 
       {/* Sub-tabs: Активные · Шаблоны · Выполненные */}
-      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-[16px] bg-[#131417] border border-white/[0.07] max-w-md">
+      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-[16px] bg-white/[0.06] max-w-md">
         {(
           [
             { id: 'active', label: 'Активные', count: totalActiveCount },
@@ -702,12 +696,12 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
               key={tab.id}
               type="button"
               onClick={() => setSubTab(tab.id)}
-              className={`h-9 px-2 rounded-[12px] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 transition ${
-                active ? 'apple-pill-active text-white' : 'text-[#8E9098] hover:text-white'
+              className={`h-11 px-2 rounded-[12px] text-[14px] font-semibold inline-flex items-center justify-center gap-1.5 transition ${
+                active ? 'apple-pill-active text-white' : 'text-[#98989F] hover:text-white'
               }`}
             >
               <span className="truncate">{tab.label}</span>
-              <span className="text-[11px] text-[#8E9098] tabular-nums">{tab.count}</span>
+              <span className="text-[11px] text-[#98989F] tabular-nums">{tab.count}</span>
             </button>
           );
         })}
@@ -727,7 +721,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
                   <h3 className="text-[18px] font-semibold text-white">
                     Миссий пока нет
                   </h3>
-                  <p className="text-[13px] text-[#8E9098] max-w-md mx-auto">
+                  <p className="text-[13px] text-[#98989F] max-w-md mx-auto">
                     Например: «Сходить в магазин» и пункты — молоко, хлеб, яйца. Миссия закроется, когда отметишь каждый.
                   </p>
                 </div>
@@ -757,7 +751,7 @@ export const LifeMissionsHub: React.FC<LifeMissionsHubProps> = ({
               <h3 className="text-[17px] font-semibold text-white">
                 Пока нет выполненных миссий
               </h3>
-              <p className="text-[13px] text-[#8E9098]">
+              <p className="text-[13px] text-[#98989F]">
                 Завершённые миссии появятся здесь — их можно будет в любой момент вернуть в активные.
               </p>
             </div>

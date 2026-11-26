@@ -552,10 +552,10 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
     const lastCoachMsg = threadMessages[threadMessages.length - 1];
     return (
       <div className="max-w-[780px] mx-auto min-h-[calc(100vh-146px)] md:min-h-[calc(100vh-106px)] flex flex-col rounded-[28px] apple-card overflow-hidden">
-        <header className="shrink-0 px-5 py-4 border-b border-white/[0.08] bg-[#16171B]/90 backdrop-blur-xl flex items-center justify-between gap-3">
+        <header className="shrink-0 px-5 py-4 border-b border-white/[0.08] bg-[#1C1C1E]/90 backdrop-blur-xl flex items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-bold tracking-[-0.02em] text-white">Сообщения</h1>
-            <p className="text-[12px] text-[#8E9098]">
+            <p className="text-[12px] text-[#98989F]">
               Выбери чат с тренером или по любой миссии
             </p>
           </div>
@@ -567,10 +567,10 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                 ? 'Push-уведомления включены'
                 : 'Включить Push-уведомления'
             }
-            className={`w-9 h-9 rounded-full flex items-center justify-center border transition active:scale-95 ${
+            className={`w-11 h-11 rounded-full flex items-center justify-center border transition active:scale-95 ${
               state.browserPushEnabled
                 ? 'bg-[#30D158]/15 border-[#30D158]/35 text-[#30D158]'
-                : 'bg-[#25262B] border-white/[0.08] text-[#98989F] hover:text-white'
+                : 'bg-[#2C2C2E] border-transparent text-[#98989F] hover:text-white'
             }`}
           >
             {state.browserPushEnabled ? (
@@ -581,7 +581,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-white/[0.06] bg-[#0F1014]/70">
+        <div className="flex-1 overflow-y-auto divide-y divide-white/[0.06] bg-black/60">
           {/* Coach Chat Row */}
           <button
             type="button"
@@ -590,27 +590,27 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
           >
             <div className="relative shrink-0">
               <div
-                className="w-12 h-12 rounded-full flex items-center justify-center shadow-[0_6px_18px_rgba(255,55,95,0.28)]"
+                className="w-12 h-12 rounded-full flex items-center justify-center"
                 style={{
                   background: 'linear-gradient(145deg, #FF375F 0%, #FF7A45 100%)',
                 }}
               >
                 <Dumbbell className="w-5 h-5 text-white stroke-[2.2]" />
               </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#30D158] border-2 border-[#0F1014]" />
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#30D158] border-2 border-[#000000]" />
             </div>
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[15px] font-semibold text-white truncate">Тренер</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFD60A]/12 text-[10px] font-semibold text-[#FFD60A] tabular-nums shrink-0">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.08] text-[12px] font-semibold text-[#98989F] tabular-nums shrink-0">
                     <Flame className="w-2.5 h-2.5" />
                     {state.streakDays} дн.
                   </span>
                 </div>
                 {lastCoachMsg && (
-                  <span className="text-[11px] text-[#8E9098] tabular-nums shrink-0">
+                  <span className="text-[12px] text-[#98989F] tabular-nums shrink-0">
                     {formatChatTime(lastCoachMsg.timestamp)}
                   </span>
                 )}
@@ -624,13 +624,13 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
           </button>
 
           {/* Section label for Mission Chats */}
-          <div className="px-4 sm:px-5 py-2 bg-white/[0.02] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#8E9098] flex items-center justify-between">
+          <div className="px-4 sm:px-5 py-2 bg-white/[0.02] text-[12px] font-semibold text-[#98989F] flex items-center justify-between">
             <span>Чаты миссий</span>
             <span className="tabular-nums">{orderedMissions.length}</span>
           </div>
 
           {orderedMissions.length === 0 ? (
-            <div className="px-5 py-10 text-center text-[13px] text-[#8E9098]">
+            <div className="px-5 py-10 text-center text-[13px] text-[#98989F]">
               Пока нет миссий. Создай миссию в разделе «Миссии» — и здесь появится её чат.
             </div>
           ) : (
@@ -652,8 +652,8 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 border border-white/10"
                     style={{
-                      backgroundColor: `${group?.color ?? '#FF6B9D'}22`,
-                      color: group?.color ?? '#FF6B9D',
+                      backgroundColor: `${group?.color ?? '#FF6B8B'}22`,
+                      color: group?.color ?? '#FF6B8B',
                     }}
                   >
                     <Target className="w-5 h-5" />
@@ -663,12 +663,12 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                     <div className="flex items-center justify-between gap-2">
                       <span
                         className={`text-[15px] font-semibold truncate ${
-                          isDone ? 'text-[#8E9098] line-through' : 'text-white'
+                          isDone ? 'text-[#98989F] line-through' : 'text-white'
                         }`}
                       >
                         {mission.title}
                       </span>
-                      <span className="text-[11px] text-[#8E9098] tabular-nums shrink-0">
+                      <span className="text-[12px] text-[#98989F] tabular-nums shrink-0">
                         {lastMsg ? formatChatTime(lastMsg.timestamp) : `${doneCount}/${totalCount}`}
                       </span>
                     </div>
@@ -696,16 +696,16 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
   if (selectedMission) {
     const doneCount = selectedMission.subMissions.filter((s) => s.completed).length;
     const totalCount = selectedMission.subMissions.length;
-    const accentColor = selectedMissionGroup?.color ?? '#FF6B9D';
+    const accentColor = selectedMissionGroup?.color ?? '#FF6B8B';
 
     return (
       <div className="max-w-[780px] mx-auto h-[calc(100vh-146px)] md:h-[calc(100vh-106px)] flex flex-col rounded-[28px] apple-card overflow-hidden">
-        <header className="shrink-0 px-3 sm:px-5 py-3.5 border-b border-white/[0.08] bg-[#16171B]/90 backdrop-blur-xl flex items-center justify-between gap-3">
+        <header className="shrink-0 px-3 sm:px-5 py-3.5 border-b border-white/[0.08] bg-[#1C1C1E]/90 backdrop-blur-xl flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={() => setSelectedChatId(null)}
-              className="w-9 h-9 rounded-full bg-[#25262B] hover:bg-[#2F3137] flex items-center justify-center text-white shrink-0 active:scale-95 transition"
+              className="w-11 h-11 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-white shrink-0 active:scale-95 transition"
               aria-label="Назад к чатам"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -732,11 +732,11 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-3.5 bg-[#0F1014]/70">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-3.5 bg-black/60">
           {/* Mission Briefing + Interactive Checklist */}
           <div className="flex justify-start">
-            <div className="max-w-[92%] sm:max-w-[82%] rounded-[22px] rounded-bl-[6px] bg-[#202127] border border-white/[0.08] px-4 py-3.5 space-y-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: accentColor }}>
+            <div className="max-w-[92%] sm:max-w-[82%] rounded-[22px] rounded-bl-[6px] bg-[#2C2C2E] px-4 py-3.5 space-y-3">
+              <div className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: accentColor }}>
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span>Брифинг миссии</span>
               </div>
@@ -749,7 +749,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
 
               {selectedMission.mapPin && (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] text-[12px] text-[#98989F]">
-                  <MapPin className="w-3.5 h-3.5 text-[#FF85AE]" />
+                  <MapPin className="w-3.5 h-3.5 text-[#FF6B8B]" />
                   <span>{selectedMission.mapPin.placeName}</span>
                 </div>
               )}
@@ -761,7 +761,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                       key={sub.id}
                       type="button"
                       onClick={() => toggleLifeSubMission(selectedMission.id, sub.id)}
-                      className="w-full px-3 py-2 rounded-[12px] bg-black/35 hover:bg-black/50 border border-white/[0.07] flex items-center gap-2.5 text-left transition"
+                      className="w-full px-3 py-2 rounded-[12px] bg-black/35 hover:bg-black/50 flex items-center gap-2.5 text-left transition"
                     >
                       <span
                         className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border transition ${
@@ -774,13 +774,13 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                       </span>
                       <span
                         className={`text-[13px] flex-1 ${
-                          sub.completed ? 'line-through text-[#8E9098]' : 'text-white/95'
+                          sub.completed ? 'line-through text-[#98989F]' : 'text-white/95'
                         }`}
                       >
                         {sub.title}
                       </span>
                       {sub.quantity && (
-                        <span className="text-[11px] text-[#8E9098] shrink-0">{sub.quantity}</span>
+                        <span className="text-[12px] text-[#98989F] shrink-0">{sub.quantity}</span>
                       )}
                     </button>
                   ))}
@@ -798,13 +798,13 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                   className={`max-w-[86%] sm:max-w-[76%] rounded-[22px] px-4 py-3 space-y-1.5 ${
                     isUser
                       ? 'bg-gradient-to-br from-[#FF375F] to-[#FF6B57] text-white rounded-br-[6px]'
-                      : 'bg-[#202127] border border-white/[0.08] text-white/95 rounded-bl-[6px]'
+                      : 'bg-[#2C2C2E] text-white/95 rounded-bl-[6px]'
                   }`}
                 >
                   <p className="text-[14px] leading-[1.45] whitespace-pre-line">{msg.text}</p>
                   <div
-                    className={`flex items-center justify-end gap-1 text-[10px] tabular-nums ${
-                      isUser ? 'text-white/75' : 'text-[#8E8E93]'
+                    className={`flex items-center justify-end gap-1 text-[11px] tabular-nums ${
+                      isUser ? 'text-white/75' : 'text-[#98989F]'
                     }`}
                   >
                     <span>{formatChatTime(msg.timestamp)}</span>
@@ -818,14 +818,14 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
           <div ref={missionBottomRef} />
         </div>
 
-        <div className="shrink-0 border-t border-white/[0.08] bg-[#16171B]/95 px-3.5 sm:px-4 pt-2.5 pb-3 space-y-2.5">
+        <div className="shrink-0 border-t border-white/[0.08] bg-[#1C1C1E]/95 px-3.5 sm:px-4 pt-2.5 pb-3 space-y-2.5">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
             {['Напомни шаги', 'Сколько осталось?', 'Готово!'].map((chip) => (
               <button
                 key={chip}
                 type="button"
                 onClick={() => handleSendMissionMessage(chip)}
-                className="shrink-0 px-3 py-1.5 rounded-full bg-[#24252B] hover:bg-[#2E3038] border border-white/[0.08] text-[12px] font-medium text-white/90 active:scale-95 transition"
+                className="shrink-0 px-4 py-2.5 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[13px] font-medium text-white/90 active:scale-95 transition"
               >
                 {chip}
               </button>
@@ -844,13 +844,13 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
               value={missionDraft}
               onChange={(e) => setMissionDraft(e.target.value)}
               placeholder="Заметка или вопрос по миссии..."
-              className="flex-1 h-11 px-4 rounded-full bg-[#24252B] border border-white/[0.1] text-[14px] text-white placeholder:text-[#8E8E93] focus:outline-none focus:border-[#FF6B9D]/55 transition"
+              className="flex-1 h-11 px-4 rounded-full bg-[#2C2C2E] text-[14px] text-white placeholder:text-[#98989F] focus:outline-none focus:border-[#FF375F]/60 transition"
             />
             <button
               type="submit"
               disabled={!missionDraft.trim()}
               aria-label="Отправить"
-              className="w-11 h-11 rounded-full bg-gradient-to-br from-[#FF375F] to-[#FF7A45] text-white flex items-center justify-center shrink-0 shadow-[0_6px_16px_rgba(255,55,95,0.3)] disabled:opacity-40 active:scale-95 transition"
+              className="w-11 h-11 rounded-full bg-gradient-to-br from-[#FF375F] to-[#FF7A45] text-white flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition"
             >
               <Send className="w-[18px] h-[18px]" />
             </button>
@@ -864,12 +864,12 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
   return (
     <div className="max-w-[780px] mx-auto h-[calc(100vh-146px)] md:h-[calc(100vh-106px)] flex flex-col rounded-[28px] apple-card overflow-hidden">
       {/* Messenger Top Bar */}
-      <header className="shrink-0 px-3 sm:px-5 py-3.5 border-b border-white/[0.08] bg-[#16171B]/90 backdrop-blur-xl flex items-center justify-between gap-3">
+      <header className="shrink-0 px-3 sm:px-5 py-3.5 border-b border-white/[0.08] bg-[#1C1C1E]/90 backdrop-blur-xl flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
             onClick={() => setSelectedChatId(null)}
-            className="w-9 h-9 rounded-full bg-[#25262B] hover:bg-[#2F3137] flex items-center justify-center text-white shrink-0 active:scale-95 transition"
+            className="w-11 h-11 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-white shrink-0 active:scale-95 transition"
             aria-label="Назад к чатам"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -878,14 +878,14 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
           {/* Coach Avatar */}
           <div className="relative shrink-0">
             <div
-              className="w-11 h-11 rounded-full flex items-center justify-center shadow-[0_6px_18px_rgba(255,55,95,0.3)]"
+              className="w-11 h-11 rounded-full flex items-center justify-center"
               style={{
                 background: 'linear-gradient(145deg, #FF375F 0%, #FF7A45 100%)',
               }}
             >
               <Dumbbell className="w-5 h-5 text-white stroke-[2.2]" />
             </div>
-            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#30D158] border-2 border-[#16171B]" />
+            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#30D158] border-2 border-[#1C1C1E]" />
           </div>
 
           <div className="min-w-0">
@@ -893,7 +893,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
               <h1 className="text-[16px] font-bold tracking-[-0.02em] text-white truncate">
                 Тренер
               </h1>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFD60A]/12 text-[11px] font-semibold text-[#FFD60A] tabular-nums">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.08] text-[12px] font-semibold text-[#98989F] tabular-nums">
                 <Flame className="w-3 h-3" />
                 {state.streakDays} дн.
               </span>
@@ -917,10 +917,10 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                 ? 'Push-уведомления включены'
                 : 'Включить Push-уведомления от тренера'
             }
-            className={`w-9 h-9 rounded-full flex items-center justify-center border transition active:scale-95 ${
+            className={`w-11 h-11 rounded-full flex items-center justify-center border transition active:scale-95 ${
               state.browserPushEnabled
                 ? 'bg-[#30D158]/15 border-[#30D158]/35 text-[#30D158]'
-                : 'bg-[#25262B] border-white/[0.08] text-[#98989F] hover:text-white'
+                : 'bg-[#2C2C2E] border-transparent text-[#98989F] hover:text-white'
             }`}
           >
             {state.browserPushEnabled ? (
@@ -933,7 +933,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
           <button
             type="button"
             onClick={() => openFitness('overview')}
-            className="h-9 px-3.5 rounded-full bg-gradient-to-r from-[#FF375F] to-[#FF7A45] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 shadow-[0_6px_16px_rgba(255,55,95,0.28)] active:scale-95 transition"
+            className="h-11 px-4 rounded-full bg-gradient-to-r from-[#FF375F] to-[#FF7A45] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 active:scale-95 transition"
           >
             <Activity className="w-3.5 h-3.5" />
             <span>Фитнес</span>
@@ -956,12 +956,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
       )}
 
       {/* Scrollable Chat History */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-3.5 bg-[#0F1014]/70">
-        <div className="text-center">
-          <span className="inline-block px-3 py-1 rounded-full bg-white/[0.05] text-[11px] font-medium text-[#8E8E93]">
-            Чат с тренером · переходы в Фитнес активны
-          </span>
-        </div>
+      <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-3.5 bg-black/60">
 
         {threadMessages.map((msg) => {
           const isUser = msg.sender === 'user';
@@ -973,12 +968,12 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
               <div
                 className={`max-w-[86%] sm:max-w-[76%] rounded-[22px] px-4 py-3 space-y-2.5 ${
                   isUser
-                    ? 'bg-gradient-to-br from-[#FF375F] to-[#FF6B57] text-white rounded-br-[6px] shadow-[0_8px_22px_-8px_rgba(255,55,95,0.5)]'
-                    : 'bg-[#202127] border border-white/[0.08] text-white/95 rounded-bl-[6px]'
+                    ? 'bg-gradient-to-br from-[#FF375F] to-[#FF6B57] text-white rounded-br-[6px]'
+                    : 'bg-[#2C2C2E] text-white/95 rounded-bl-[6px]'
                 }`}
               >
                 {!isUser && msg.tag && (
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#FF85AE]">
+                  <div className="text-[12px] font-semibold text-[#FF6B8B]">
                     {msg.tag}
                   </div>
                 )}
@@ -987,7 +982,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
 
                 {/* Interactive Redirect Card → Fitness App */}
                 {!isUser && msg.fitnessRedirect && (
-                  <div className="rounded-[16px] bg-black/45 border border-white/[0.1] p-3 space-y-2.5">
+                  <div className="rounded-[16px] bg-black/45 p-3 space-y-2.5">
                     <div className="flex items-center gap-2.5">
                       <div
                         className="w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0"
@@ -1004,7 +999,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                             {msg.fitnessRedirect.title}
                           </span>
                         </div>
-                        <div className="text-[11px] text-[#98989F] truncate tabular-nums">
+                        <div className="text-[12px] text-[#98989F] truncate tabular-nums">
                           {msg.fitnessRedirect.subtitle}
                         </div>
                       </div>
@@ -1014,17 +1009,17 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                       <button
                         type="button"
                         onClick={() => openFitness(msg.fitnessRedirect!.subTab)}
-                        className="flex-1 min-w-[130px] h-9 px-3 rounded-[11px] bg-white/[0.1] hover:bg-white/[0.16] border border-white/[0.12] text-white text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 active:scale-[0.98] transition"
+                        className="flex-1 min-w-[130px] h-11 px-3.5 rounded-[11px] bg-white/[0.1] hover:bg-white/[0.16] text-white text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 active:scale-[0.98] transition"
                       >
                         <span>Открыть Фитнес</span>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-[#FF85AE]" />
+                        <ArrowUpRight className="w-3.5 h-3.5 text-[#FF6B8B]" />
                       </button>
 
                       {msg.fitnessRedirect.missionId && (
                         <button
                           type="button"
                           onClick={() => startMission(msg.fitnessRedirect!.missionId!)}
-                          className="h-9 px-3.5 rounded-[11px] bg-gradient-to-r from-[#FF375F] to-[#FF7A45] text-white text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 shadow-[0_4px_14px_rgba(255,55,95,0.35)] active:scale-[0.98] transition"
+                          className="h-11 px-4 rounded-[11px] bg-gradient-to-r from-[#FF375F] to-[#FF7A45] text-white text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 active:scale-[0.98] transition"
                         >
                           <Play className="w-3 h-3 fill-current" />
                           <span>Начать</span>
@@ -1035,8 +1030,8 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
                 )}
 
                 <div
-                  className={`flex items-center justify-end gap-1 text-[10px] tabular-nums ${
-                    isUser ? 'text-white/75' : 'text-[#8E8E93]'
+                  className={`flex items-center justify-end gap-1 text-[11px] tabular-nums ${
+                    isUser ? 'text-white/75' : 'text-[#98989F]'
                   }`}
                 >
                   <span>{formatChatTime(msg.timestamp)}</span>
@@ -1049,7 +1044,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
 
         {isCoachTyping && (
           <div className="flex justify-start">
-            <div className="rounded-[20px] rounded-bl-[6px] bg-[#202127] border border-white/[0.08] px-4 py-3 inline-flex items-center gap-1.5">
+            <div className="rounded-[20px] rounded-bl-[6px] bg-[#2C2C2E] px-4 py-3 inline-flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#98989F] animate-bounce [animation-delay:-0.2s]" />
               <span className="w-2 h-2 rounded-full bg-[#98989F] animate-bounce [animation-delay:-0.1s]" />
               <span className="w-2 h-2 rounded-full bg-[#98989F] animate-bounce" />
@@ -1061,7 +1056,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
       </div>
 
       {/* Quick Replies + Composer */}
-      <div className="shrink-0 border-t border-white/[0.08] bg-[#16171B]/95 px-3.5 sm:px-4 pt-2.5 pb-3 space-y-2.5">
+      <div className="shrink-0 border-t border-white/[0.08] bg-[#1C1C1E]/95 px-3.5 sm:px-4 pt-2.5 pb-3 space-y-2.5">
         {/* Quick Reply Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
           {QUICK_REPLIES.map((chip) => (
@@ -1069,7 +1064,7 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
               key={chip.id}
               type="button"
               onClick={() => handleSendMessage(chip.label)}
-              className="shrink-0 px-3 py-1.5 rounded-full bg-[#24252B] hover:bg-[#2E3038] border border-white/[0.08] text-[12px] font-medium text-white/90 active:scale-95 transition"
+              className="shrink-0 px-4 py-2.5 rounded-full bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[13px] font-medium text-white/90 active:scale-95 transition"
             >
               {chip.label}
             </button>
@@ -1083,13 +1078,13 @@ export const MessagesTabView: React.FC<MessagesTabViewProps> = ({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Написать тренеру..."
-            className="flex-1 h-11 px-4 rounded-full bg-[#24252B] border border-white/[0.1] text-[14px] text-white placeholder:text-[#8E8E93] focus:outline-none focus:border-[#FF6B9D]/55 transition"
+            className="flex-1 h-11 px-4 rounded-full bg-[#2C2C2E] text-[14px] text-white placeholder:text-[#98989F] focus:outline-none focus:border-[#FF375F]/60 transition"
           />
           <button
             type="submit"
             disabled={!draft.trim()}
             aria-label="Отправить сообщение"
-            className="w-11 h-11 rounded-full bg-gradient-to-br from-[#FF375F] to-[#FF7A45] text-white flex items-center justify-center shrink-0 shadow-[0_6px_16px_rgba(255,55,95,0.3)] disabled:opacity-40 active:scale-95 transition"
+            className="w-11 h-11 rounded-full bg-gradient-to-br from-[#FF375F] to-[#FF7A45] text-white flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition"
           >
             <Send className="w-[18px] h-[18px]" />
           </button>

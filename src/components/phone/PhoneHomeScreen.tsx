@@ -72,54 +72,53 @@ export const PhoneHomeScreen: React.FC<PhoneHomeScreenProps> = ({ onLaunchApp })
       id: 'messages',
       label: 'Сообщения',
       icon: MessageCircle,
-      gradient: 'linear-gradient(145deg, #34E86A 0%, #24C45A 55%, #169848 100%)',
-      glow: 'rgba(48, 209, 88, 0.34)',
+      gradient: 'linear-gradient(145deg, #48484A 0%, #2C2C2E 100%)',
+      glow: 'rgba(0, 0, 0, 0.3)',
       badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
     },
     {
       id: 'map',
       label: 'Карта',
       icon: MapPin,
-      gradient: 'linear-gradient(145deg, #5CE1E6 0%, #32ADE6 52%, #0A84FF 100%)',
-      glow: 'rgba(50, 173, 230, 0.36)',
+      gradient: 'linear-gradient(145deg, #48484A 0%, #2C2C2E 100%)',
+      glow: 'rgba(0, 0, 0, 0.3)',
     },
     {
       id: 'missions',
       label: 'Миссии',
       icon: Crosshair,
-      gradient: 'linear-gradient(145deg, #FFD60A 0%, #FF9F0A 60%, #FF6B35 100%)',
-      glow: 'rgba(255, 179, 10, 0.34)',
-      iconColor: '#17120A',
+      gradient: 'linear-gradient(145deg, #48484A 0%, #2C2C2E 100%)',
+      glow: 'rgba(0, 0, 0, 0.3)',
       badge: activeLifeMissionsCount > 0 ? activeLifeMissionsCount : undefined,
     },
     {
       id: 'fitness_plan',
       label: 'План',
       icon: CalendarDays,
-      gradient: 'linear-gradient(145deg, #FF6B9D 0%, #D95BFF 55%, #8E54E9 100%)',
-      glow: 'rgba(217, 91, 255, 0.32)',
+      gradient: 'linear-gradient(145deg, #48484A 0%, #2C2C2E 100%)',
+      glow: 'rgba(0, 0, 0, 0.3)',
     },
     {
       id: 'onboarding',
       label: 'Настройка',
       icon: SlidersHorizontal,
-      gradient: 'linear-gradient(145deg, #5A5C66 0%, #373840 55%, #222329 100%)',
-      glow: 'rgba(255, 255, 255, 0.12)',
+      gradient: 'linear-gradient(145deg, #48484A 0%, #2C2C2E 100%)',
+      glow: 'rgba(0, 0, 0, 0.3)',
     },
     {
       id: 'auth',
       label: user ? 'Синхр.' : 'Облако',
       icon: Cloud,
-      gradient: 'linear-gradient(145deg, #38BDF8 0%, #0EA5E9 55%, #0369A1 100%)',
-      glow: 'rgba(56, 189, 248, 0.32)',
+      gradient: 'linear-gradient(145deg, #48484A 0%, #2C2C2E 100%)',
+      glow: 'rgba(0, 0, 0, 0.3)',
       statusDot: user ? '#30D158' : undefined,
     },
     {
       id: 'profile',
       label: 'Профиль',
       icon: Settings,
-      gradient: 'linear-gradient(145deg, #6E6CE8 0%, #4E4BD6 58%, #322FA8 100%)',
-      glow: 'rgba(110, 108, 232, 0.34)',
+      gradient: 'linear-gradient(145deg, #48484A 0%, #2C2C2E 100%)',
+      glow: 'rgba(0, 0, 0, 0.3)',
     },
   ];
 
@@ -168,7 +167,7 @@ export const PhoneHomeScreen: React.FC<PhoneHomeScreenProps> = ({ onLaunchApp })
       <header className="relative z-10 w-full max-w-[680px] mx-auto px-5 sm:px-8 pt-4 sm:pt-6 flex items-center justify-between gap-3">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.08] border border-white/[0.12] backdrop-blur-xl">
           <span className="w-2 h-2 rounded-full bg-[#30D158] shadow-[0_0_8px_#30D158]" />
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/95">
+          <span className="text-[12px] font-bold uppercase tracking-[0.2em] text-white/95">
             LIFE
           </span>
         </div>
@@ -231,14 +230,14 @@ export const PhoneHomeScreen: React.FC<PhoneHomeScreenProps> = ({ onLaunchApp })
                   </div>
 
                   {typeof app.badge === 'number' && app.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#FF375F] border-2 border-[#161321] text-[11px] font-bold text-white flex items-center justify-center tabular-nums shadow-lg">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#FF375F] border-2 border-black text-[12px] font-bold text-white flex items-center justify-center tabular-nums shadow-lg">
                       {app.badge > 99 ? '99+' : app.badge}
                     </span>
                   )}
 
                   {app.statusDot && (
                     <span
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#161321]"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-black"
                       style={{ backgroundColor: app.statusDot }}
                     />
                   )}
@@ -278,7 +277,7 @@ export const PhoneHomeScreen: React.FC<PhoneHomeScreenProps> = ({ onLaunchApp })
                     />
                   </div>
                   {typeof app.badge === 'number' && app.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 rounded-full bg-[#FF375F] border-2 border-[#1b1c24] text-[10px] font-bold text-white flex items-center justify-center tabular-nums">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 rounded-full bg-[#FF375F] border-2 border-black text-[12px] font-bold text-white flex items-center justify-center tabular-nums">
                       {app.badge > 99 ? '99+' : app.badge}
                     </span>
                   )}

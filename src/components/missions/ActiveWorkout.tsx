@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Check,
-  Dumbbell,
+  ChevronRight,
   Info,
   Minus,
   Pencil,
@@ -50,6 +50,7 @@ export const ActiveWorkout: React.FC = () => {
   const [editDraftTasks, setEditDraftTasks] = useState<MissionExerciseTask[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [exerciseCategoryFilter, setExerciseCategoryFilter] = useState<WorkoutCategory | 'all'>('all');
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   useEffect(() => {
     if (!mission) return;
@@ -64,6 +65,7 @@ export const ActiveWorkout: React.FC = () => {
     setRestSecondsLeft(0);
     setWeightExpandedByIdx({});
     setIsEditing(false);
+    setShowDiscardConfirm(false);
   }, [mission?.id]);
 
   useEffect(() => {
@@ -87,6 +89,21 @@ export const ActiveWorkout: React.FC = () => {
     });
   }, [exerciseSearch, exerciseCategoryFilter]);
 
+  const hasUnsavedEditorChanges = useMemo(() => {
+    if (!isEditing) return false;
+    if (editDraftTasks.length !== tasksState.length) return true;
+    return editDraftTasks.some((draft, idx) => {
+      const orig = tasksState[idx];
+      if (!orig) return true;
+      return (
+        draft.exerciseId !== orig.exerciseId ||
+        draft.sets !== orig.sets ||
+        draft.targetPerSet !== orig.targetPerSet ||
+        draft.weightKg !== orig.weightKg
+      );
+    });
+  }, [isEditing, editDraftTasks, tasksState]);
+
   if (!mission || tasksState.length === 0) return null;
 
   const currentTask = tasksState[activeTaskIdx] ?? tasksState[0];
@@ -98,11 +115,7 @@ export const ActiveWorkout: React.FC = () => {
       ? 'м'
       : 'повт.';
 
-  const showWeightControl =
-    Boolean(currentExercise?.supportsWeight) ||
-    currentTask.weightKg !== undefined ||
-    Boolean(weightExpandedByIdx[activeTaskIdx]);
-
+  const isWeightExpanded = Boolean(weightExpandedByIdx[activeTaskIdx]);
   const activeWeightKg = currentTask.weightKg ?? 0;
 
   const totalPlannedSets = tasksState.reduce((acc, t) => acc + t.sets, 0);
@@ -112,6 +125,19 @@ export const ActiveWorkout: React.FC = () => {
     Math.round((totalDoneSets / Math.max(1, totalPlannedSets)) * 100)
   );
   const allSetsDone = totalDoneSets >= totalPlannedSets;
+
+  const totalVolumeKg = tasksState.reduce((acc, task) => {
+    const w = task.weightKg ?? 0;
+    if (w <= 0) return acc;
+    const taskReps = task.completedSets.reduce((sum, r) => sum + r, 0);
+    return acc + taskReps * w;
+  }, 0);
+
+  const totalReps = tasksState.reduce((acc, task) => {
+    const ex = EXERCISES[task.exerciseId];
+    if (ex?.unit === 'seconds' || ex?.unit === 'meters') return acc;
+    return acc + task.completedSets.reduce((sum, r) => sum + r, 0);
+  }, 0);
 
   const handleSetTaskWeight = (taskIdx: number, nextKg: number) => {
     const clamped = Math.max(0, Math.round(nextKg * 2) / 2);
@@ -155,7 +181,16 @@ export const ActiveWorkout: React.FC = () => {
     setEditDraftTasks(tasksState.map((t) => ({ ...t })));
     setExerciseSearch('');
     setExerciseCategoryFilter('all');
+    setShowDiscardConfirm(false);
     setIsEditing(true);
+  };
+
+  const handleRequestCloseEditor = () => {
+    if (hasUnsavedEditorChanges) {
+      setShowDiscardConfirm(true);
+    } else {
+      setIsEditing(false);
+    }
   };
 
   const handleUpdateDraftTask = (
@@ -216,6 +251,7 @@ export const ActiveWorkout: React.FC = () => {
     const nextIdx = Math.min(activeTaskIdx, sanitized.length - 1);
     setActiveTaskIdx(nextIdx);
     setCurrentValue(sanitized[nextIdx]?.targetPerSet ?? 8);
+    setShowDiscardConfirm(false);
     setIsEditing(false);
   };
 
@@ -228,41 +264,43 @@ export const ActiveWorkout: React.FC = () => {
   const restMinutes = Math.floor(restSecondsLeft / 60);
   const restSecs = restSecondsLeft % 60;
 
+  const nextExerciseName = currentExercise?.name ?? currentTask.exerciseId;
+
   return (
     <div className="min-h-screen lg:min-h-0 w-full px-5 md:px-0 pt-4 md:pt-6 pb-10 flex flex-col gap-6">
-      {/* Apple Watch / Fitness+ Top Bar */}
+      {/* Top Bar */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2.5">
           <button
             type="button"
             onClick={cancelActiveMission}
-            className="w-10 h-10 shrink-0 rounded-full apple-card flex items-center justify-center text-white/90 hover:text-white active:scale-95 transition"
+            className="w-11 h-11 shrink-0 rounded-full apple-card flex items-center justify-center text-white hover:bg-[#2C2C2E] active:scale-95 transition"
             aria-label="Выйти из тренировки"
           >
             <ArrowLeft className="w-[18px] h-[18px]" />
           </button>
 
           <div className="text-center min-w-0 flex-1">
-            <div className="text-[16px] md:text-[18px] font-semibold tracking-[-0.01em] text-white truncate">
+            <div className="text-[17px] font-semibold tracking-[-0.01em] text-white truncate">
               {mission.title}
             </div>
-            <div className="text-[12px] text-[#98989F] tabular-nums">
+            <div className="text-[13px] text-[#98989F] tabular-nums">
               {totalDoneSets} из {totalPlannedSets} подходов
             </div>
           </div>
 
-          <div className="shrink-0 flex items-center gap-2">
+          <div className="shrink-0 flex items-center gap-2.5">
             <button
               type="button"
               onClick={handleOpenEditor}
-              className="h-9 px-3 rounded-full apple-card-elevated hover:bg-[#32343B] text-[12px] font-semibold text-white inline-flex items-center gap-1.5 active:scale-95 transition"
+              className="h-11 px-3.5 rounded-full apple-card-elevated hover:bg-[#32343B] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 active:scale-95 transition"
             >
-              <Pencil className="w-3.5 h-3.5 text-[#E5A3BD]" />
+              <Pencil className="w-3.5 h-3.5 text-[#98989F]" />
               <span className="hidden sm:inline">Изменить тренировку</span>
               <span className="sm:hidden">Изменить</span>
             </button>
 
-            <div className="w-10 text-right text-[14px] font-bold text-[#E5A3BD] tabular-nums">
+            <div className="w-10 text-right text-[14px] font-semibold text-white tabular-nums">
               {progressPercent}%
             </div>
           </div>
@@ -279,10 +317,9 @@ export const ActiveWorkout: React.FC = () => {
       {/* Responsive 2-column Studio on Tablet/Desktop, Single Column on Mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
         <div className="lg:col-span-7">
-          {/* Main Focus Card: Glowing Rest Ring OR Active Set Stepper */}
           {restSecondsLeft > 0 ? (
             <div className="rounded-[28px] apple-card p-6 flex flex-col items-center text-center space-y-6">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#98989F]">
+              <span className="text-[13px] font-semibold uppercase tracking-[0.1em] text-[#98989F]">
                 Отдых между подходами
               </span>
 
@@ -290,8 +327,8 @@ export const ActiveWorkout: React.FC = () => {
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
                   <defs>
                     <linearGradient id="restRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#E5A3BD" />
-                      <stop offset="100%" stopColor="#8AE5C3" />
+                      <stop offset="0%" stopColor="#FF375F" />
+                      <stop offset="100%" stopColor="#FF7A45" />
                     </linearGradient>
                   </defs>
                   <circle
@@ -299,7 +336,7 @@ export const ActiveWorkout: React.FC = () => {
                     cy="80"
                     r={ringRadius}
                     fill="none"
-                    stroke="rgba(255, 55, 95, 0.16)"
+                    stroke="rgba(255, 255, 255, 0.08)"
                     strokeWidth="10"
                   />
                   <circle
@@ -313,13 +350,24 @@ export const ActiveWorkout: React.FC = () => {
                     strokeDasharray={ringCircumference}
                     strokeDashoffset={ringOffset}
                     className="transition-all duration-500"
-                    style={{ filter: 'drop-shadow(0 0 8px rgba(255, 55, 95, 0.45))' }}
                   />
                 </svg>
                 <span className="absolute text-[40px] font-bold tracking-[-0.03em] text-white tabular-nums">
                   {restMinutes}:{String(restSecs).padStart(2, '0')}
                 </span>
               </div>
+
+              {nextExerciseName && (
+                <div className="space-y-0.5">
+                  <div className="text-[13px] font-medium text-[#98989F]">
+                    Далее · Подход {Math.min(currentTask.completedSets.length + 1, currentTask.sets)} из{' '}
+                    {currentTask.sets}
+                  </div>
+                  <div className="text-[17px] font-semibold text-white">
+                    {nextExerciseName}
+                  </div>
+                </div>
+              )}
 
               <div className="w-full grid grid-cols-2 gap-3">
                 <button
@@ -335,7 +383,7 @@ export const ActiveWorkout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setRestSecondsLeft(0)}
-                  className="h-[50px] rounded-[16px] bg-white text-black text-[15px] font-semibold inline-flex items-center justify-center gap-1.5 active:scale-[0.97] transition"
+                  className="h-[50px] rounded-[16px] bg-white text-[#111214] text-[15px] font-semibold inline-flex items-center justify-center gap-1.5 active:scale-[0.97] transition"
                 >
                   <SkipForward className="w-4 h-4" />
                   <span>Готов</span>
@@ -344,8 +392,8 @@ export const ActiveWorkout: React.FC = () => {
             </div>
           ) : allSetsDone ? (
             <div className="rounded-[28px] apple-card p-6 text-center space-y-5">
-              <div className="w-16 h-16 mx-auto rounded-full bg-[#30D158]/15 text-[#30D158] flex items-center justify-center shadow-[0_0_24px_rgba(48,209,88,0.22)]">
-                <Check className="w-8 h-8 stroke-[2.6]" />
+              <div className="w-16 h-16 mx-auto rounded-full bg-white/[0.08] text-white flex items-center justify-center">
+                <Check className="w-8 h-8 stroke-[2.4]" />
               </div>
               <div>
                 <h2 className="text-[24px] font-bold tracking-[-0.02em] text-white">
@@ -355,6 +403,24 @@ export const ActiveWorkout: React.FC = () => {
                   Зафиксируй тренировку, чтобы обновить восстановление мышц.
                 </p>
               </div>
+
+              <div className="rounded-[20px] bg-white/[0.04] p-4 grid grid-cols-2 divide-x divide-white/[0.08]">
+                <div className="px-2">
+                  <div className="text-[13px] font-medium text-[#98989F]">Подходы</div>
+                  <div className="mt-0.5 text-[22px] font-bold text-white tabular-nums">
+                    {totalDoneSets}
+                  </div>
+                </div>
+                <div className="px-2">
+                  <div className="text-[13px] font-medium text-[#98989F]">Объём</div>
+                  <div className="mt-0.5 text-[22px] font-bold text-white tabular-nums">
+                    {totalVolumeKg > 0
+                      ? `${formatWeightKg(Math.round(totalVolumeKg * 10) / 10)} кг`
+                      : `${totalReps} повт.`}
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={handleFinish}
@@ -367,80 +433,68 @@ export const ActiveWorkout: React.FC = () => {
             <div className="rounded-[28px] apple-card p-5 sm:p-6 space-y-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#E5A3BD] tabular-nums">
+                  <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#98989F] tabular-nums">
                     Подход {Math.min(currentTask.completedSets.length + 1, currentTask.sets)} из{' '}
-                    {currentTask.sets} · Отдых {currentExercise?.restSeconds ?? 90} сек
+                    {currentTask.sets}
                   </span>
                   <h2 className="text-[22px] sm:text-[24px] font-bold tracking-[-0.025em] text-white leading-snug">
                     {currentExercise?.name ?? currentTask.exerciseId}
                   </h2>
                 </div>
 
-                <div className="shrink-0 flex items-center gap-1.5">
-                  {!showWeightControl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWeightExpandedByIdx((prev) => ({
-                          ...prev,
-                          [activeTaskIdx]: true,
-                        }));
-                        if (currentTask.weightKg === undefined) {
-                          handleSetTaskWeight(activeTaskIdx, 0);
-                        }
-                      }}
-                      className="h-9 px-3 rounded-full apple-card-elevated hover:bg-[#32343B] text-[12px] font-semibold text-[#8AE5C3] inline-flex items-center gap-1 active:scale-95 transition"
-                    >
-                      <Dumbbell className="w-3.5 h-3.5" />
-                      <span>+ Вес</span>
-                    </button>
-                  )}
-
-                  {currentExercise && (
-                    <button
-                      type="button"
-                      onClick={() => setGuideExercise(currentExercise)}
-                      className="h-9 px-3 rounded-full apple-card-elevated hover:bg-[#32343B] text-[12px] font-semibold text-white inline-flex items-center gap-1.5 active:scale-95 transition"
-                    >
-                      <Info className="w-3.5 h-3.5 text-[#E5A3BD]" />
-                      <span>Техника</span>
-                    </button>
-                  )}
-                </div>
+                {currentExercise && (
+                  <button
+                    type="button"
+                    onClick={() => setGuideExercise(currentExercise)}
+                    className="w-11 h-11 shrink-0 rounded-full apple-card-elevated hover:bg-[#32343B] flex items-center justify-center text-white active:scale-95 transition"
+                    aria-label="Техника выполнения"
+                  >
+                    <Info className="w-5 h-5" />
+                  </button>
+                )}
               </div>
 
-              {/* Live 3D Side-Profile Athlete Demonstration */}
               <ExerciseAnimationSvg
                 exerciseId={currentTask.exerciseId}
                 className="w-full h-48 sm:h-56"
               />
 
-              {currentExercise?.techniqueTip && (
-                <p className="text-[13px] text-[#98989F] leading-relaxed text-center px-1">
-                  {currentExercise.techniqueTip}
-                </p>
-              )}
+              {/* Compact Weight Row & Expandable Controls */}
+              <div className="rounded-[18px] bg-[#2C2C2E]/60 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setWeightExpandedByIdx((prev) => ({
+                      ...prev,
+                      [activeTaskIdx]: !prev[activeTaskIdx],
+                    }))
+                  }
+                  aria-expanded={isWeightExpanded}
+                  className="w-full min-h-[44px] px-4 py-2.5 flex items-center justify-between text-left hover:bg-white/[0.04] transition"
+                >
+                  <span className="text-[14px] font-medium text-white tabular-nums">
+                    Вес {formatWeightKg(activeWeightKg)} кг
+                  </span>
+                  <ChevronRight
+                    className={`w-4 h-4 text-[#98989F] transition-transform duration-200 ${
+                      isWeightExpanded ? 'rotate-90' : ''
+                    }`}
+                  />
+                </button>
 
-              {/* Working Weight Control (kg) */}
-              {showWeightControl && (
-                <div className="rounded-[18px] bg-[#131417] border border-white/[0.07] p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#8AE5C3]">
-                      <Dumbbell className="w-3.5 h-3.5" />
-                      <span>Рабочий вес (кг)</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
+                {isWeightExpanded && (
+                  <div className="px-4 pb-3.5 pt-2 border-t border-white/[0.07] space-y-3">
+                    <div className="flex items-center justify-between gap-3">
                       <button
                         type="button"
                         onClick={() =>
                           handleSetTaskWeight(activeTaskIdx, activeWeightKg - 2.5)
                         }
-                        className="h-8 px-2.5 rounded-[10px] apple-card-elevated hover:bg-[#3A3A3C] text-[12px] font-semibold text-white active:scale-95 transition tabular-nums"
+                        className="h-11 min-w-[64px] px-3.5 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[14px] font-semibold text-white active:scale-95 transition tabular-nums"
                       >
                         −2.5
                       </button>
-                      <div className="min-w-[74px] text-center text-[15px] font-bold text-white tabular-nums">
+                      <div className="text-center text-[16px] font-bold text-white tabular-nums">
                         {formatWeightKg(activeWeightKg)} кг
                       </div>
                       <button
@@ -448,36 +502,36 @@ export const ActiveWorkout: React.FC = () => {
                         onClick={() =>
                           handleSetTaskWeight(activeTaskIdx, activeWeightKg + 2.5)
                         }
-                        className="h-8 px-2.5 rounded-[10px] apple-card-elevated hover:bg-[#3A3A3C] text-[12px] font-semibold text-white active:scale-95 transition tabular-nums"
+                        className="h-11 min-w-[64px] px-3.5 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[14px] font-semibold text-white active:scale-95 transition tabular-nums"
                       >
                         +2.5
                       </button>
                     </div>
-                  </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {WEIGHT_PRESETS.map((kg) => {
-                      const active = activeWeightKg === kg;
-                      return (
-                        <button
-                          key={kg}
-                          type="button"
-                          onClick={() => handleSetTaskWeight(activeTaskIdx, kg)}
-                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tabular-nums transition active:scale-95 ${
-                            active
-                              ? 'bg-[#8AE5C3] text-[#111214]'
-                              : 'bg-white/[0.06] text-[#C8CAD0] hover:text-white'
-                          }`}
-                        >
-                          {kg} кг
-                        </button>
-                      );
-                    })}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {WEIGHT_PRESETS.map((kg) => {
+                        const active = activeWeightKg === kg;
+                        return (
+                          <button
+                            key={kg}
+                            type="button"
+                            onClick={() => handleSetTaskWeight(activeTaskIdx, kg)}
+                            className={`min-h-[44px] px-3.5 rounded-full text-[13px] font-semibold tabular-nums transition active:scale-95 ${
+                              active
+                                ? 'apple-sunset-cta text-[#111214]'
+                                : 'bg-white/[0.07] text-[#98989F] hover:text-white'
+                            }`}
+                          >
+                            {kg} кг
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Apple Watch Style Big Crisp Stepper */}
+              {/* Big Crisp Stepper */}
               <div className="flex items-center justify-between gap-4 px-2">
                 <button
                   type="button"
@@ -496,7 +550,7 @@ export const ActiveWorkout: React.FC = () => {
                   <div className="text-[56px] font-bold tracking-[-0.04em] leading-none text-white tabular-nums">
                     {currentValue}
                   </div>
-                  <div className="mt-1.5 text-[13px] font-medium text-[#98989F]">
+                  <div className="mt-1.5 text-[14px] font-medium text-[#98989F]">
                     {unitLabel}
                     {activeWeightKg > 0 ? ` · ${formatWeightKg(activeWeightKg)} кг` : ''}
                   </div>
@@ -526,7 +580,7 @@ export const ActiveWorkout: React.FC = () => {
           )}
         </div>
 
-        {/* Apple Health Inset Grouped Exercise Checklist */}
+        {/* Inset Grouped Exercise Checklist */}
         <div className="lg:col-span-5 space-y-2.5">
           <div className="rounded-[24px] apple-card divide-y divide-white/[0.07] overflow-hidden">
             {tasksState.map((task, idx) => {
@@ -541,40 +595,39 @@ export const ActiveWorkout: React.FC = () => {
                     setActiveTaskIdx(idx);
                     setCurrentValue(task.targetPerSet);
                   }}
-                  className={`w-full px-4 py-3.5 flex items-center justify-between text-left transition ${
-                    isCurrent ? 'bg-[#E5A3BD]/[0.10]' : 'hover:bg-white/[0.025]'
+                  className={`relative w-full min-h-[56px] px-4 py-3 flex items-center justify-between text-left transition ${
+                    isCurrent ? 'bg-white/[0.04]' : 'hover:bg-white/[0.025]'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                  {isCurrent && (
                     <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        done
-                          ? 'bg-[#30D158]'
-                          : isCurrent
-                          ? 'bg-[#E5A3BD]'
-                          : 'bg-white/20'
-                      }`}
+                      aria-hidden="true"
+                      className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-gradient-to-b from-[#FF375F] to-[#FF7A45]"
                     />
+                  )}
+
+                  <div className="flex items-center gap-3 min-w-0 pr-3">
+                    {done && <Check className="w-4 h-4 text-white shrink-0" />}
                     <div className="min-w-0">
                       <div
-                        className={`text-[14px] font-medium truncate ${
-                          done ? 'text-[#636366] line-through' : 'text-white'
+                        className={`text-[15px] font-medium truncate ${
+                          done ? 'text-[#98989F]' : 'text-white'
                         }`}
                       >
                         {ex?.name ?? task.exerciseId}
                       </div>
                       {task.weightKg !== undefined && task.weightKg > 0 && (
-                        <div className="text-[11px] font-medium text-[#8AE5C3] tabular-nums">
+                        <div className="text-[13px] text-[#98989F] tabular-nums">
                           {formatWeightKg(task.weightKg)} кг
                         </div>
                       )}
                     </div>
                   </div>
+
                   <div className="shrink-0 flex items-center gap-2">
                     <span className="text-[13px] font-semibold text-[#98989F] tabular-nums">
                       {task.completedSets.length}/{task.sets}
                     </span>
-                    {done && <Check className="w-4 h-4 text-[#30D158]" />}
                     {ex && (
                       <span
                         role="button"
@@ -589,10 +642,10 @@ export const ActiveWorkout: React.FC = () => {
                             setGuideExercise(ex);
                           }
                         }}
-                        className="w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center text-[#8E9098] hover:text-white transition"
+                        className="w-11 h-11 rounded-full hover:bg-white/10 flex items-center justify-center text-[#98989F] hover:text-white transition"
                         aria-label={`Техника: ${ex.name}`}
                       >
-                        <Info className="w-3.5 h-3.5" />
+                        <Info className="w-4 h-4" />
                       </span>
                     )}
                   </div>
@@ -605,7 +658,7 @@ export const ActiveWorkout: React.FC = () => {
             <button
               type="button"
               onClick={handleFinish}
-              className="w-full h-11 rounded-[16px] apple-card text-[#98989F] hover:text-white text-[14px] font-medium transition active:scale-[0.98] tabular-nums"
+              className="w-full min-h-[44px] py-2 text-[14px] font-medium text-[#98989F] hover:text-white transition active:scale-[0.98] tabular-nums"
             >
               Завершить досрочно ({totalDoneSets}/{totalPlannedSets})
             </button>
@@ -617,44 +670,36 @@ export const ActiveWorkout: React.FC = () => {
       {isEditing && (
         <div
           className="fixed inset-0 z-50 bg-[#0E0F11]/85 backdrop-blur-xl flex items-end sm:items-center justify-center sm:p-6 animate-modal-in"
-          onClick={() => setIsEditing(false)}
+          onClick={handleRequestCloseEditor}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-[660px] max-h-[92vh] rounded-t-[28px] sm:rounded-[28px] apple-liquid-glass flex flex-col overflow-hidden"
+            className="relative w-full sm:max-w-[660px] max-h-[92vh] rounded-t-[28px] sm:rounded-[28px] apple-liquid-glass flex flex-col overflow-hidden"
           >
-            {/* Editor Header */}
-            <div className="shrink-0 px-5 pt-5 pb-3.5 border-b border-white/[0.08] flex items-start justify-between gap-3">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#E5A3BD]">
-                  Фитнес-редактор
-                </span>
-                <h2 className="mt-0.5 text-[20px] font-bold text-white">
-                  Изменить тренировку
-                </h2>
-                <p className="text-[12px] text-[#8E9098]">{mission.title}</p>
-              </div>
+            {/* Single Editor Header */}
+            <div className="shrink-0 px-5 py-4 border-b border-white/[0.08] flex items-center justify-between gap-3">
+              <h2 className="text-[20px] font-bold text-white tracking-[-0.02em]">
+                Изменить тренировку
+              </h2>
               <button
                 type="button"
-                onClick={() => setIsEditing(false)}
-                className="w-9 h-9 rounded-full apple-card-elevated flex items-center justify-center text-[#98989F] hover:text-white active:scale-95 transition"
+                onClick={handleRequestCloseEditor}
+                className="w-11 h-11 rounded-full apple-card-elevated flex items-center justify-center text-[#98989F] hover:text-white active:scale-95 transition"
                 aria-label="Закрыть редактор"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Editor Body */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-              {/* Current Exercises in Mission */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-[#8E9098]">
-                    Упражнения в плане ({editDraftTasks.length})
-                  </h3>
-                </div>
+              {/* Current Exercises in Mission — Inset Grouped List without nested borders */}
+              <div className="space-y-2.5">
+                <h3 className="px-1 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#98989F]">
+                  Упражнения в плане ({editDraftTasks.length})
+                </h3>
 
-                <div className="space-y-2.5">
+                <div className="rounded-[22px] bg-[#1C1C1E] divide-y divide-white/[0.08] overflow-hidden">
                   {editDraftTasks.map((task, idx) => {
                     const ex = EXERCISES[task.exerciseId];
                     const step =
@@ -668,22 +713,16 @@ export const ActiveWorkout: React.FC = () => {
                     const w = task.weightKg ?? 0;
 
                     return (
-                      <div
-                        key={`${task.exerciseId}-${idx}`}
-                        className="rounded-[18px] apple-card p-3.5 space-y-3"
-                      >
-                        <div className="flex items-start justify-between gap-2">
+                      <div key={`${task.exerciseId}-${idx}`} className="px-4 py-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="text-[14px] font-semibold text-white truncate">
+                            <div className="text-[15px] font-semibold text-white truncate">
                               {ex?.name ?? task.exerciseId}
                             </div>
                             {ex && (
-                              <span
-                                className="text-[11px] font-medium"
-                                style={{ color: CATEGORY_META[ex.category].color }}
-                              >
+                              <div className="text-[13px] text-[#98989F]">
                                 {CATEGORY_META[ex.category].label}
-                              </span>
+                              </div>
                             )}
                           </div>
 
@@ -691,18 +730,18 @@ export const ActiveWorkout: React.FC = () => {
                             type="button"
                             disabled={editDraftTasks.length <= 1}
                             onClick={() => handleRemoveDraftTask(idx)}
-                            className="shrink-0 w-8 h-8 rounded-full hover:bg-white/[0.08] text-[#8E9098] hover:text-[#FF6B8B] disabled:opacity-30 flex items-center justify-center transition"
+                            className="shrink-0 w-11 h-11 rounded-full hover:bg-white/[0.08] text-[#98989F] hover:text-white disabled:opacity-30 flex items-center justify-center transition"
                             aria-label="Удалить упражнение"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="divide-y divide-white/[0.06]">
                           {/* Sets */}
-                          <div className="rounded-[12px] bg-[#131417] border border-white/[0.06] px-3 py-2 flex items-center justify-between">
-                            <span className="text-[11px] text-[#8E9098]">Подходы</span>
-                            <div className="flex items-center gap-1.5">
+                          <div className="py-1.5 flex items-center justify-between gap-3">
+                            <span className="text-[14px] text-[#98989F]">Подходы</span>
+                            <div className="flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -710,11 +749,12 @@ export const ActiveWorkout: React.FC = () => {
                                     sets: Math.max(1, task.sets - 1),
                                   })
                                 }
-                                className="w-7 h-7 rounded-[8px] apple-card-elevated flex items-center justify-center text-white"
+                                className="w-11 h-11 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-white active:scale-95 transition"
+                                aria-label="Уменьшить подходы"
                               >
-                                <Minus className="w-3.5 h-3.5" />
+                                <Minus className="w-4 h-4" />
                               </button>
-                              <span className="w-6 text-center text-[13px] font-bold text-white tabular-nums">
+                              <span className="w-8 text-center text-[15px] font-semibold text-white tabular-nums">
                                 {task.sets}
                               </span>
                               <button
@@ -724,17 +764,18 @@ export const ActiveWorkout: React.FC = () => {
                                     sets: Math.min(12, task.sets + 1),
                                   })
                                 }
-                                className="w-7 h-7 rounded-[8px] apple-card-elevated flex items-center justify-center text-white"
+                                className="w-11 h-11 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-white active:scale-95 transition"
+                                aria-label="Увеличить подходы"
                               >
-                                <Plus className="w-3.5 h-3.5" />
+                                <Plus className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
 
                           {/* Target */}
-                          <div className="rounded-[12px] bg-[#131417] border border-white/[0.06] px-3 py-2 flex items-center justify-between">
-                            <span className="text-[11px] text-[#8E9098]">Цель ({u})</span>
-                            <div className="flex items-center gap-1.5">
+                          <div className="py-1.5 flex items-center justify-between gap-3">
+                            <span className="text-[14px] text-[#98989F]">Цель ({u})</span>
+                            <div className="flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -742,11 +783,12 @@ export const ActiveWorkout: React.FC = () => {
                                     targetPerSet: Math.max(step, task.targetPerSet - step),
                                   })
                                 }
-                                className="w-7 h-7 rounded-[8px] apple-card-elevated flex items-center justify-center text-white"
+                                className="w-11 h-11 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-white active:scale-95 transition"
+                                aria-label="Уменьшить цель"
                               >
-                                <Minus className="w-3.5 h-3.5" />
+                                <Minus className="w-4 h-4" />
                               </button>
-                              <span className="min-w-[30px] text-center text-[13px] font-bold text-white tabular-nums">
+                              <span className="w-8 text-center text-[15px] font-semibold text-white tabular-nums">
                                 {task.targetPerSet}
                               </span>
                               <button
@@ -756,17 +798,18 @@ export const ActiveWorkout: React.FC = () => {
                                     targetPerSet: task.targetPerSet + step,
                                   })
                                 }
-                                className="w-7 h-7 rounded-[8px] apple-card-elevated flex items-center justify-center text-white"
+                                className="w-11 h-11 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-white active:scale-95 transition"
+                                aria-label="Увеличить цель"
                               >
-                                <Plus className="w-3.5 h-3.5" />
+                                <Plus className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
 
                           {/* Weight */}
-                          <div className="rounded-[12px] bg-[#131417] border border-white/[0.06] px-3 py-2 flex items-center justify-between">
-                            <span className="text-[11px] text-[#8E9098]">Вес (кг)</span>
-                            <div className="flex items-center gap-1.5">
+                          <div className="py-1.5 flex items-center justify-between gap-3">
+                            <span className="text-[14px] text-[#98989F]">Вес (кг)</span>
+                            <div className="flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -774,11 +817,12 @@ export const ActiveWorkout: React.FC = () => {
                                     weightKg: Math.max(0, w - 2.5),
                                   })
                                 }
-                                className="w-7 h-7 rounded-[8px] apple-card-elevated flex items-center justify-center text-white"
+                                className="w-11 h-11 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-white active:scale-95 transition"
+                                aria-label="Уменьшить вес"
                               >
-                                <Minus className="w-3.5 h-3.5" />
+                                <Minus className="w-4 h-4" />
                               </button>
-                              <span className="min-w-[36px] text-center text-[13px] font-bold text-[#8AE5C3] tabular-nums">
+                              <span className="w-8 text-center text-[15px] font-semibold text-white tabular-nums">
                                 {formatWeightKg(w)}
                               </span>
                               <button
@@ -788,9 +832,10 @@ export const ActiveWorkout: React.FC = () => {
                                     weightKg: w + 2.5,
                                   })
                                 }
-                                className="w-7 h-7 rounded-[8px] apple-card-elevated flex items-center justify-center text-white"
+                                className="w-11 h-11 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] flex items-center justify-center text-white active:scale-95 transition"
+                                aria-label="Увеличить вес"
                               >
-                                <Plus className="w-3.5 h-3.5" />
+                                <Plus className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
@@ -803,7 +848,7 @@ export const ActiveWorkout: React.FC = () => {
 
               {/* Add Exercise From Catalog */}
               <div className="space-y-3 pt-2 border-t border-white/[0.08]">
-                <h3 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-[#8E9098]">
+                <h3 className="px-1 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#98989F]">
                   Добавить упражнение из базы
                 </h3>
 
@@ -814,18 +859,19 @@ export const ActiveWorkout: React.FC = () => {
                     value={exerciseSearch}
                     onChange={(e) => setExerciseSearch(e.target.value)}
                     placeholder="Поиск упражнения (турник, брусья, гантели...)"
-                    className="w-full h-10 pl-10 pr-3.5 rounded-[12px] bg-[#131417] border border-white/[0.08] text-[13px] text-white placeholder-[#636366] focus:outline-none focus:border-[#E5A3BD]/60"
+                    className="w-full h-11 pl-10 pr-3.5 rounded-[14px] bg-[#1C1C1E] text-[14px] text-white placeholder-[#636366] focus:outline-none focus:ring-1 focus:ring-white/25"
                   />
                 </div>
 
-                <div className="flex flex-wrap gap-1.5">
+                {/* Horizontal Scroll Categories */}
+                <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-1">
                   <button
                     type="button"
                     onClick={() => setExerciseCategoryFilter('all')}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition ${
+                    className={`min-h-[44px] px-4 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 transition ${
                       exerciseCategoryFilter === 'all'
                         ? 'bg-white text-[#111214]'
-                        : 'apple-card-elevated text-[#98989F] hover:text-white'
+                        : 'bg-[#2C2C2E] text-[#98989F] hover:text-white'
                     }`}
                   >
                     Все
@@ -838,10 +884,10 @@ export const ActiveWorkout: React.FC = () => {
                         key={cat}
                         type="button"
                         onClick={() => setExerciseCategoryFilter(cat)}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition ${
+                        className={`min-h-[44px] px-4 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 transition ${
                           active
                             ? 'bg-white text-[#111214]'
-                            : 'apple-card-elevated text-[#98989F] hover:text-white'
+                            : 'bg-[#2C2C2E] text-[#98989F] hover:text-white'
                         }`}
                       >
                         {meta.label}
@@ -850,7 +896,7 @@ export const ActiveWorkout: React.FC = () => {
                   })}
                 </div>
 
-                <div className="rounded-[16px] bg-[#131417] border border-white/[0.07] divide-y divide-white/[0.06] max-h-56 overflow-y-auto">
+                <div className="rounded-[22px] bg-[#1C1C1E] divide-y divide-white/[0.08] max-h-60 overflow-y-auto">
                   {filteredCatalogExercises.map((ex) => {
                     const u =
                       ex.unit === 'seconds'
@@ -861,13 +907,13 @@ export const ActiveWorkout: React.FC = () => {
                     return (
                       <div
                         key={ex.id}
-                        className="px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                        className="px-4 py-2.5 flex items-center justify-between gap-2.5"
                       >
                         <div className="min-w-0">
-                          <div className="text-[13px] font-medium text-white truncate">
+                          <div className="text-[14px] font-medium text-white truncate">
                             {ex.name}
                           </div>
-                          <div className="text-[11px] text-[#8E9098] tabular-nums">
+                          <div className="text-[13px] text-[#98989F] tabular-nums">
                             {CATEGORY_META[ex.category].label} · {ex.defaultSets}×{ex.defaultTarget} {u}
                           </div>
                         </div>
@@ -875,16 +921,16 @@ export const ActiveWorkout: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleAddExerciseToDraft(ex)}
-                          className="shrink-0 h-8 px-3 rounded-[10px] apple-card-elevated hover:bg-[#32343B] text-[12px] font-semibold text-[#8AE5C3] inline-flex items-center gap-1 active:scale-95 transition"
+                          className="shrink-0 min-h-[44px] px-3.5 rounded-[12px] bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 active:scale-95 transition"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-4 h-4" />
                           <span>Добавить</span>
                         </button>
                       </div>
                     );
                   })}
                   {filteredCatalogExercises.length === 0 && (
-                    <div className="p-4 text-center text-[12px] text-[#8E9098]">
+                    <div className="p-4 text-center text-[13px] text-[#98989F]">
                       Упражнения не найдены
                     </div>
                   )}
@@ -896,19 +942,60 @@ export const ActiveWorkout: React.FC = () => {
             <div className="shrink-0 px-5 py-4 border-t border-white/[0.08] flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setIsEditing(false)}
-                className="h-11 px-5 rounded-[14px] apple-card-elevated text-[14px] font-semibold text-[#D1D3D9] hover:text-white active:scale-[0.98] transition"
+                onClick={handleRequestCloseEditor}
+                className="h-12 px-5 rounded-[14px] apple-card-elevated text-[14px] font-semibold text-[#98989F] hover:text-white active:scale-[0.98] transition"
               >
                 Отмена
               </button>
               <button
                 type="button"
                 onClick={handleSaveEditor}
-                className="flex-1 h-11 rounded-[14px] apple-sunset-cta text-[#111214] text-[14px] font-semibold active:scale-[0.98] transition"
+                className="flex-1 h-12 rounded-[14px] apple-sunset-cta text-[#111214] text-[14px] font-semibold active:scale-[0.98] transition"
               >
                 Сохранить изменения
               </button>
             </div>
+
+            {/* Unsaved Changes Confirmation Sheet */}
+            {showDiscardConfirm && (
+              <div
+                className="absolute inset-0 z-10 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5"
+                onClick={() => setShowDiscardConfirm(false)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full max-w-[340px] rounded-[24px] bg-[#1C1C1E] p-5 space-y-4 text-center shadow-2xl"
+                >
+                  <div className="space-y-1.5">
+                    <h3 className="text-[17px] font-semibold text-white">
+                      Несохранённые изменения
+                    </h3>
+                    <p className="text-[14px] text-[#98989F]">
+                      Выйти из редактора без сохранения?
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDiscardConfirm(false);
+                        setIsEditing(false);
+                      }}
+                      className="w-full min-h-[44px] rounded-[14px] apple-sunset-cta text-[#111214] text-[14px] font-semibold active:scale-[0.98] transition"
+                    >
+                      Выйти без сохранения
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDiscardConfirm(false)}
+                      className="w-full min-h-[44px] rounded-[14px] bg-[#2C2C2E] hover:bg-[#3A3A3C] text-[14px] font-semibold text-white active:scale-[0.98] transition"
+                    >
+                      Продолжить редактирование
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
