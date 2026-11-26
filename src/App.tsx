@@ -93,6 +93,10 @@ const AdaptiveAppShell: React.FC = () => {
         setFitnessSubTab('overview');
         setActiveTab('fitness');
         break;
+      case 'fitness_plan':
+        setFitnessSubTab('plan');
+        setActiveTab('fitness');
+        break;
       case 'messages':
         handleSelectTab('messages');
         break;
@@ -104,6 +108,12 @@ const AdaptiveAppShell: React.FC = () => {
         break;
       case 'profile':
         setActiveTab('profile');
+        break;
+      case 'onboarding':
+        setIsOnboardingOpen(true);
+        break;
+      case 'auth':
+        setIsAuthModalOpen(true);
         break;
     }
   };
@@ -123,6 +133,7 @@ const AdaptiveAppShell: React.FC = () => {
   };
 
   const isInActiveMission = Boolean(state.activeMissionId);
+  const isHomeScreen = activeTab === 'home' && !isInActiveMission;
   const hpPercent = Math.round(
     (state.stats.currentHp / Math.max(1, state.stats.maxHp)) * 100
   );
@@ -134,6 +145,23 @@ const AdaptiveAppShell: React.FC = () => {
       : hpPercent >= 45
       ? 'text-[#FFB36B]'
       : 'text-[#FF6B9D]';
+
+  if (isHomeScreen) {
+    return (
+      <>
+        <PhoneHomeScreen onLaunchApp={handleLaunchApp} />
+        <MissionBuilderModal
+          isOpen={isQuickBuilderOpen}
+          initialMapPin={pendingMapPin}
+          onClose={handleCloseQuickBuilder}
+        />
+        <NotificationToast onOpenMessages={() => handleSelectTab('messages')} />
+        <PlanOnboarding />
+        <MissionPassedModal />
+        <AuthModal />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#0E0F11] text-white flex flex-col lg:flex-row">
